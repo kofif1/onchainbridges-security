@@ -94,6 +94,27 @@ Three Anchor programs (`mbt-defi`, `mbt-bridge-delivery`, `mbt-allowlist-hook`);
 in transitive toolchain deps, not our code) + strong Anchor access-control review; no exploitable
 findings in our program code.
 
+## Stellar (Soroban testnet) + Stellar-bridge helper
+
+Grandfathered: these went live 2026-06-03/04, before the verify+audit gate existed (2026-06-17).
+Recorded here for completeness; the Soroban contracts are being brought onto the non-EVM standard.
+
+**Non-EVM verify/audit standard (set 2026-06-17):** Soroban/Solana/Stacks have no Etherscan-style
+"verified source" tab. "Verified" therefore = published source at a commit + the on-chain code hash
+(WASM hash for Soroban/Solana; Clarity is on-chain-readable) + a reproducible deterministic build
+command that rebuilds to the same hash. "Audited" = `cargo audit` (deps) + `cargo clippy` + a
+structured access-control / authorization review per contract (same method used for the Solana
+programs above). The owning session runs the legwork; session 5 records it here (single source).
+
+EVM helper (Polygon Amoy, Etherscan V2):
+- StellarLockVault `0xA19DB9d6944ee5181233A3dC02bdB7dffB779C7D` - [VERIFIED](https://amoy.polygonscan.com/address/0xA19DB9d6944ee5181233A3dC02bdB7dffB779C7D#code) (owner = Stellar-bridge Safe `0x5031080f170F0186bF8EA4Ac538783497dE452a8`). Audit: pending its `.sol` landing in `main`, then covered by the standard EVM 3-analyzer run.
+
+Soroban (Stellar Testnet; explorer `stellar.expert/explorer/testnet/contract/<id>`):
+sMBT `CCYOGL2C7OKWDEN7XTIVLS6GFGOUEQQHER36YV5BHLPDCJJM3FIO3TD5`, sUSDC `CAS5G444JM4CDTX33ALSMAEJDMKMNKKUIHC3PV7N24KDRENRUVA4DCPO`,
+LendingVault (Polaris) `CB7WBLOFLDFJYKCYFOJYICDW3PUJ66IWIGJMP3P7MDDSXNGY5ON3JINS`, YieldIssuer `CDOHKXC63NMVZ6BRK3MYCCEK5LQCUB227YI53EEPYMBGUZRONP6PCAFG`,
+YT `CBTRU54726K5WJV6VMIBFY4WW4SHRJF6DEQB7KKAWF4HAXECAVBISPVC`, YTMarket `CCXKKM7IVCDAYNI2FCN6DILBTDY37ZVUJB6TUWJEF4TS3IBCMY6QDFKD`.
+Verification + audit: **pending the Stellar session's packet** per the non-EVM standard above.
+
 ## Not live (documented for completeness)
 
 - **Base Sepolia (84532):** NOT a supported network (`SUPPORTED_CHAINS` excludes it). Early test
