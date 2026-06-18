@@ -1,4 +1,4 @@
-# Onchain Bridges - Automated Security Review (all networks: EVM + Solana)
+# Onchain Bridges - Automated Security Review (all networks: EVM + Solana + Stellar)
 
 **Date:** 2026-06-17
 **Reviewer:** RWA Bridge engineering (automated static analysis + manual triage)
@@ -154,7 +154,44 @@ manual audit is still recommended before mainnet, same as the EVM side.
 
 ---
 
-## 7. Conclusion
+## 7. Stellar programs (Rust / Soroban)
+
+A separate Rust/Soroban codebase: six contracts (`soroban/<crate>/`, commit `16b18b07`) - sMBT
+(SEP-41 compliance token), sUSDC (demo stablecoin), LendingVault (Polaris), YieldIssuer, YT, YTMarket.
+36/36 native tests green. Reviewed by the Stellar session per the uniform non-EVM standard set here
+and recorded by session 5.
+
+**Verification:** Soroban has no explorer "verified source" tab. Each contract's source builds
+deterministically (`stellar contract build && stellar contract optimize`, stellar-cli 26.1.0, target
+`wasm32v1-none`) to a WASM whose sha256 matches the on-chain code hash; each was confirmed via
+`stellar contract fetch` + sha256. Hashes are in the [ledger](../CONTRACT-VERIFICATION-AUDIT-LEDGER.md).
+
+**Method:** `cargo audit` + `cargo clippy --target wasm32v1-none` + per-contract access-control review.
+
+**Findings (overall 0 Critical / 0 High / 0 Medium):**
+- **cargo audit:** 0 vulnerabilities. Two "unmaintained" advisories (`derivative`, `paste`) are
+  transitive via `soroban-sdk`, not our code - informational.
+- **cargo clippy:** 0 errors; cosmetic only (a `manual_saturating_arithmetic` suggestion on a
+  functionally-identical `checked_sub().unwrap_or(0)`, and one doc-indent).
+- **Access control:** sMBT separates admin / compliance_admin / relayer roles; `bridge_mint` is
+  relayer-auth + not-paused + lock-nonce replay-guarded + allowlist-checked; all SEP-41 paths
+  require_auth + check allowlist on both sides. LendingVault: admin-only price/LTV, borrower-auth'd
+  borrow/repay with LTV + liquidity guards, no admin drain path. YieldIssuer: issuer-only period
+  lifecycle, holder-auth'd claims with double-claim guards, sole YT minter. YT: mint gated to the
+  YieldIssuer + allowlist; every value path transitively gated on sMBT's KYC/pause state. YTMarket:
+  permissionless over the gated token, compliance preserved transitively (a non-KYC buyer reverts on
+  the YT-to-buyer leg). sUSDC is an intentionally-ungated demo asset.
+- **Disclosed trust assumptions (not findings):** admin/relayer/issuer keys are trusted testnet-ops
+  keys; LendingVault is demo-grade (fixed 1:1 price, no oracle/liquidation) and would need an oracle
+  + liquidation for mainnet.
+
+No exploitable findings in our Soroban contract code. The EVM-side bridge helper deployed for the
+Stellar lane (label "StellarLockVault", address on Amoy) is `src/bridge/LockVault.sol`, already
+covered by the EVM analysis in sections 2-5.
+
+---
+
+## 8. Conclusion
 
 Across the live EVM protocol contracts, three independent open-source analyzers (forge lint,
 Aderyn with 63 detectors, and solhint) **agree there are no exploitable Critical, High, or Medium

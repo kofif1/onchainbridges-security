@@ -13,7 +13,8 @@ scanners; expected, not a finding.
 > Amoy, Sonic, Soneium Minato, Plume) has its canonical protocol contracts explorer-verified, and
 > the source-based audit ([SECURITY-REVIEW-2026-06-17](audits/SECURITY-REVIEW-2026-06-17.md): 0
 > Critical/High/Medium across three independent analyzers) covers all EVM chains (one source, same
-> bytecode everywhere) plus the Solana programs. Base and Astar/Shibuya are NOT live (see notes).
+> bytecode everywhere) plus the Solana programs and the 6 Stellar/Soroban contracts (reproducible
+> WASM-hash verified + audited). Base and Astar/Shibuya are NOT live (see notes).
 >
 > **On the "free scanner" score:** the public `solidityscan.com/quickscan/...` link is a rug-pull /
 > honeypot THREAT detector, not a code audit - it penalizes the by-design compliance controls
@@ -107,13 +108,28 @@ structured access-control / authorization review per contract (same method used 
 programs above). The owning session runs the legwork; session 5 records it here (single source).
 
 EVM helper (Polygon Amoy, Etherscan V2):
-- StellarLockVault `0xA19DB9d6944ee5181233A3dC02bdB7dffB779C7D` - [VERIFIED](https://amoy.polygonscan.com/address/0xA19DB9d6944ee5181233A3dC02bdB7dffB779C7D#code) (owner = Stellar-bridge Safe `0x5031080f170F0186bF8EA4Ac538783497dE452a8`). Audit: pending its `.sol` landing in `main`, then covered by the standard EVM 3-analyzer run.
+- StellarLockVault `0xA19DB9d6944ee5181233A3dC02bdB7dffB779C7D` - [VERIFIED](https://amoy.polygonscan.com/address/0xA19DB9d6944ee5181233A3dC02bdB7dffB779C7D#code) (owner = Stellar-bridge Safe `0x5031080f170F0186bF8EA4Ac538783497dE452a8`). **Audited: 0 Crit/High/Med.** "StellarLockVault" is just the deployment label for `src/bridge/LockVault.sol` (commit 6dfa580, on main), already covered by the EVM 3-analyzer run in [SECURITY-REVIEW-2026-06-17](audits/SECURITY-REVIEW-2026-06-17.md).
 
-Soroban (Stellar Testnet; explorer `stellar.expert/explorer/testnet/contract/<id>`):
-sMBT `CCYOGL2C7OKWDEN7XTIVLS6GFGOUEQQHER36YV5BHLPDCJJM3FIO3TD5`, sUSDC `CAS5G444JM4CDTX33ALSMAEJDMKMNKKUIHC3PV7N24KDRENRUVA4DCPO`,
-LendingVault (Polaris) `CB7WBLOFLDFJYKCYFOJYICDW3PUJ66IWIGJMP3P7MDDSXNGY5ON3JINS`, YieldIssuer `CDOHKXC63NMVZ6BRK3MYCCEK5LQCUB227YI53EEPYMBGUZRONP6PCAFG`,
-YT `CBTRU54726K5WJV6VMIBFY4WW4SHRJF6DEQB7KKAWF4HAXECAVBISPVC`, YTMarket `CCXKKM7IVCDAYNI2FCN6DILBTDY37ZVUJB6TUWJEF4TS3IBCMY6QDFKD`.
-Verification + audit: **pending the Stellar session's packet** per the non-EVM standard above.
+**Soroban (Stellar Testnet) - VERIFIED (reproducible WASM-hash) + AUDITED (0 Crit/High/Med).**
+Explorer: `stellar.expert/explorer/testnet/contract/<id>`. Source: `soroban/<crate>/` @ commit
+`16b18b07` (in PR #58, lands on main when merged). Reproducible build: `stellar contract build &&
+stellar contract optimize` (stellar-cli 26.1.0, target `wasm32v1-none`) reproduces the on-chain code
+hash for all 6; each confirmed by `stellar contract fetch` + sha256 match. Audit per the non-EVM
+standard (cargo-audit + clippy + per-contract access-control review) summarized in
+[SECURITY-REVIEW-2026-06-17 §7](audits/SECURITY-REVIEW-2026-06-17.md).
+
+| Contract | Contract ID | WASM sha256 (= on-chain code hash) |
+|---|---|---|
+| sMBT | `CCYOGL2C7OKWDEN7XTIVLS6GFGOUEQQHER36YV5BHLPDCJJM3FIO3TD5` | `029c83b1707474897734c4399c166415ef6e114011e7f760846e40b17ec6d263` |
+| sUSDC | `CAS5G444JM4CDTX33ALSMAEJDMKMNKKUIHC3PV7N24KDRENRUVA4DCPO` | `f89ba0deca1c5bd0d5ad5b0136ac7abb605f38d91f92f6d0419c56ef9b9843e9` |
+| LendingVault (Polaris) | `CB7WBLOFLDFJYKCYFOJYICDW3PUJ66IWIGJMP3P7MDDSXNGY5ON3JINS` | `9140af1a878cc74603a105e1516c628b98fdb5a78e03e4ede1a616ee18b45983` |
+| YieldIssuer | `CDOHKXC63NMVZ6BRK3MYCCEK5LQCUB227YI53EEPYMBGUZRONP6PCAFG` | `42c05a8acce0b3e487a3e3126526e94569d9bad0ad6874addb2cb9b8727ed83e` |
+| YT | `CBTRU54726K5WJV6VMIBFY4WW4SHRJF6DEQB7KKAWF4HAXECAVBISPVC` | `1b4609b03ad2912561123d353d92be527c658ab162da2fd33b0326bb6c8465ed` |
+| YTMarket | `CCXKKM7IVCDAYNI2FCN6DILBTDY37ZVUJB6TUWJEF4TS3IBCMY6QDFKD` | `88c17661175614faa61894c59e04e437a46cff80972ef482edac26fe4ac52a1f` |
+
+> Source-on-main depends on **PR #58** (`feat: add Soroban contract sources to version control`,
+> 36/36 native tests green) being merged - the WASM-hash verification stands on its own, but merge
+> #58 so the cited commit is on main.
 
 ## Not live (documented for completeness)
 
