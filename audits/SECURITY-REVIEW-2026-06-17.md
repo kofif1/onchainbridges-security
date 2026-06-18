@@ -156,7 +156,7 @@ manual audit is still recommended before mainnet, same as the EVM side.
 
 ## 7. Stellar programs (Rust / Soroban)
 
-A separate Rust/Soroban codebase: six contracts (`soroban/<crate>/`, commit `16b18b07`) - sMBT
+A separate Rust/Soroban codebase: six contracts (`soroban/<crate>/`, commit `7d46c531`) - sMBT
 (SEP-41 compliance token), sUSDC (demo stablecoin), LendingVault (Polaris), YieldIssuer, YT, YTMarket.
 36/36 native tests green. Reviewed by the Stellar session per the uniform non-EVM standard set here
 and recorded by session 5.

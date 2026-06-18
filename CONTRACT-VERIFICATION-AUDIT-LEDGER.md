@@ -112,7 +112,7 @@ EVM helper (Polygon Amoy, Etherscan V2):
 
 **Soroban (Stellar Testnet) - VERIFIED (reproducible WASM-hash) + AUDITED (0 Crit/High/Med).**
 Explorer: `stellar.expert/explorer/testnet/contract/<id>`. Source: `soroban/<crate>/` @ commit
-`16b18b07` (in PR #58, lands on main when merged). Reproducible build: `stellar contract build &&
+`7d46c531` (on main, merged via PR #58). Reproducible build: `stellar contract build &&
 stellar contract optimize` (stellar-cli 26.1.0, target `wasm32v1-none`) reproduces the on-chain code
 hash for all 6; each confirmed by `stellar contract fetch` + sha256 match. Audit per the non-EVM
 standard (cargo-audit + clippy + per-contract access-control review) summarized in
@@ -127,9 +127,8 @@ standard (cargo-audit + clippy + per-contract access-control review) summarized 
 | YT | `CBTRU54726K5WJV6VMIBFY4WW4SHRJF6DEQB7KKAWF4HAXECAVBISPVC` | `1b4609b03ad2912561123d353d92be527c658ab162da2fd33b0326bb6c8465ed` |
 | YTMarket | `CCXKKM7IVCDAYNI2FCN6DILBTDY37ZVUJB6TUWJEF4TS3IBCMY6QDFKD` | `88c17661175614faa61894c59e04e437a46cff80972ef482edac26fe4ac52a1f` |
 
-> Source-on-main depends on **PR #58** (`feat: add Soroban contract sources to version control`,
-> 36/36 native tests green) being merged - the WASM-hash verification stands on its own, but merge
-> #58 so the cited commit is on main.
+> Source is on main as of commit `7d46c531` (PR #58, `feat: add Soroban contract sources to version
+> control`, 36/36 native tests green), so the cited commit is reachable via `git checkout 7d46c531`.
 
 ## Not live (documented for completeness)
 
