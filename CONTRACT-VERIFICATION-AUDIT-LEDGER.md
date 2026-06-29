@@ -185,6 +185,34 @@ Deployer principal `ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW`.
 > The rest of the Stacks set (stx-mbt, stx-susdc, stx-yt, stx-lending-vault, the bridge contracts) is
 > unchanged by this redeploy; recording the full Stacks set here is tracked as a follow-up.
 
+## CCID Phase-0 (Sepolia 11155111) - shadow - verify+audit gate CLEARED 2026-06-29
+
+Chainlink ACE Cross-Chain Identity registries (vendored `lib/chainlink-ace`, unmodified), deployed
+SHADOW: the validator is NOT attached to the live MBT PolicyEngine, so nothing is wired into any
+public config / dropdown yet. Build `FOUNDRY_PROFILE=ccid` (via_ir=true, optimizer 200). Authorized
+issuer (sole signer): `0x3055698887538cc6cF0d408e744B04F0806CB6E1` (host-generated; prior keys
+`0xdC18...` [transcript-leaked] and `0x8fc5af67...` [unused] both deauthorized on-chain).
+
+Verification (Bridge 5, INDEPENDENT): all 5 implementations recompiled from source with the ccid
+profile and bytecode-matched byte-identical (metadata-stripped) to the on-chain runtime; all 5 proxies
+are the canonical OZ ERC1967Proxy (byte-identical, each pointing at its recorded impl via the ERC1967
+slot). Also Etherscan source-verified by the CCID channel. Audit: proxy->impl integrity OK; registry-
+write-gate proven (all 7 mutation selectors gated to the issuer); only 0x3055 authorized; validator +
+PolicyEngine `typeAndVersion` = 1.0.0.
+
+| Contract | Proxy | Implementation |
+|---|---|---|
+| Registry-admin PolicyEngine | `0xfB1762FbA9630414d9A8940C9f0037e0eBbDEc33` | `0xb2C30E602A9a2179b8372c63208Bc5Ea9A1e1C22` |
+| OnlyAuthorizedSenderPolicy (issuer gate) | `0xd494922fC60EC18D197C09cb6a9f70518A1CAD7E` | `0x89E5318a96E25d725A4CFD61b64917C29252ad24` |
+| IdentityRegistry | `0x89EC36234fF2D75C306f27913e7421791fC888c7` | `0x5e3303fbe8e83B6a9Db0dF33e8b2f2957f4a0E88` |
+| CredentialRegistry | `0xDc5Acd767633E7B29C7f317DBB57c52F597bCe6F` | `0x918c3d3f99166C7f2686Dd2322C9B3A52C49788d` |
+| CredentialRegistryIdentityValidatorPolicy | `0xdAbf8046A6fa3b56Ab55fA4154e0fD6679b0d717` | `0x9d80e7Fdfb81f613b05cA484432CDbfD50e71e16` |
+
+FINDING (mainnet-attach gate, NOT testnet-blocking): the entire admin surface , UUPS upgrade of all 5
+impls, PolicyEngine policy admin, and issuer authorizeSender , is a single deployer EOA
+`0xFc9933C8896715c1f3ADF9b8250ac051a95Fd33c`. Before any mainnet CCID: move admin to a multisig/timelock
+and confirm that key is cold/hardware. Validator-attach (Phase 2) is a separate future gate.
+
 ## Not live (documented for completeness)
 
 - **Base Sepolia (84532):** NOT a supported network (`SUPPORTED_CHAINS` excludes it). Early test
