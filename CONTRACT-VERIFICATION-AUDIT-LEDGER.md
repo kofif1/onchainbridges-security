@@ -85,7 +85,22 @@ library code - identical source already verified on Sepolia + Amoy.)
 Explorer: `https://soneium-minato.blockscout.com/address/<addr>`. TLPT-ecosystem contracts verified:
 OperatorAllowlist `0x5fe9d900945b60b3becede4382bed2653ec99d40`, TLPTFaucet `0x8c57abe7cf1330346eb760edaee380a66d3f42f7`,
 TLPTSale `0xe5e1e4b594c343c1e9bac0730b25fd4ab21f7389`, TLPTStaking `0xf3186574c8a0c0b3e235704bad389b78604b2745`,
-TestUSDC `0x71a8e443f223cfe59498968758db49f2d114dce2`. (Minato's MBT/bridge is currently hidden in the UI.)
+TestUSDC `0x71a8e443f223cfe59498968758db49f2d114dce2`.
+
+**MBT bridge stack , LIVE + source-verified 2026-06-28** (Minato re-enabled, in MBT_CHAIN_IDS; supersedes the prior "hidden in UI" note):
+
+| Contract | Address |
+|---|---|
+| MBT (RWATokenCCT) | `0x690ab8d7a6a96f49d65f113c5adcd89111480232` |
+| Pool (BurnMintTokenPool 1.5.1) | `0xb4908accabcba9ce56ef0324b9695a88e3dd2534` |
+| PolicyEngine proxy | `0x5d273aae0547fd33c0c5247487a160cd26f38fe4` |
+| PolicyEngine impl | `0x49f1aa7c252183e79d4944c54698a335ed65c150` |
+| AllowPolicy proxy | `0xa06b827bb452bc3e2caea0eee38b2186a28e99e1` |
+| AllowPolicy impl | `0x19807c563746ab8fa5815c147cc51141ead600c2` |
+| PausePolicy proxy | `0xaaa3a1ef510b029d0949c242372e535bf3702c8f` |
+| PausePolicy impl | `0xcbe81190b7637136099c35f88e71fb2d04d4a7f2` |
+
+solc 0.8.24 / optimizer 200. The 3 ACE contracts are ERC1967 proxy+impl pairs; impl addresses confirmed via on-chain ERC1967 slot reads matching the proxies in `chains.ts`. Pool `typeAndVersion` = "BurnMintTokenPool 1.5.1". Enforced policy chain checked via `getPolicies(MBT, transfer/transferFrom/mint)` = [AllowPolicy `0xa06b827b...`, PausePolicy `0xaaa3a1ef...`] (no orphan-policy trap). Lane verified-live both directions Sepolia<->Minato 2026-06-28 (canary + seq 1637 SUCCESS).
 
 ## Solana (devnet) - Rust/Anchor
 
