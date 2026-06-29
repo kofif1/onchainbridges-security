@@ -123,12 +123,52 @@ standard (cargo-audit + clippy + per-contract access-control review) summarized 
 | sMBT | `CCYOGL2C7OKWDEN7XTIVLS6GFGOUEQQHER36YV5BHLPDCJJM3FIO3TD5` | `029c83b1707474897734c4399c166415ef6e114011e7f760846e40b17ec6d263` |
 | sUSDC | `CAS5G444JM4CDTX33ALSMAEJDMKMNKKUIHC3PV7N24KDRENRUVA4DCPO` | `f89ba0deca1c5bd0d5ad5b0136ac7abb605f38d91f92f6d0419c56ef9b9843e9` |
 | LendingVault (Polaris) | `CB7WBLOFLDFJYKCYFOJYICDW3PUJ66IWIGJMP3P7MDDSXNGY5ON3JINS` | `9140af1a878cc74603a105e1516c628b98fdb5a78e03e4ede1a616ee18b45983` |
-| YieldIssuer | `CDOHKXC63NMVZ6BRK3MYCCEK5LQCUB227YI53EEPYMBGUZRONP6PCAFG` | `42c05a8acce0b3e487a3e3126526e94569d9bad0ad6874addb2cb9b8727ed83e` |
-| YT | `CBTRU54726K5WJV6VMIBFY4WW4SHRJF6DEQB7KKAWF4HAXECAVBISPVC` | `1b4609b03ad2912561123d353d92be527c658ab162da2fd33b0326bb6c8465ed` |
-| YTMarket | `CCXKKM7IVCDAYNI2FCN6DILBTDY37ZVUJB6TUWJEF4TS3IBCMY6QDFKD` | `88c17661175614faa61894c59e04e437a46cff80972ef482edac26fe4ac52a1f` |
+| YieldIssuer | `CD7DADUDMQRWOAANVV37U6233RO7YTCTTL6R3X7ZIBWUQNUQR7WS76SK` | `96903db2fe04216b207a855d0b6225e8374d11bcc70de770749e46c7281f4b5b` |
+| YT | `CCMZ6UES2XLHKOQ7O74HE2T4IQFFNULBU3PCWPQUDTV5XJB656VF5FMU` | `662f81c410fb6768a2b5f0c0b9315af3d2cb781bfac7a44db9c8ec022784058a` |
+| YTMarket | `CBVBHAHBBUMOCCEMFDEZFNKU3TYBFGT2F7WWRCYXWBHF7NYHG7R53QJ2` | `2b613c8773b5a63961636f68e9328d871891308d9adb3f317df14ba6196a3b16` |
 
 > Source is on main as of commit `7d46c531` (PR #58, `feat: add Soroban contract sources to version
 > control`, 36/36 native tests green), so the cited commit is reachable via `git checkout 7d46c531`.
+
+> **Yield-stack redeploys (YieldIssuer/YT/YTMarket only; sMBT/sUSDC/Polaris unchanged).** The three
+> yield rows above are the **2026-06-28 overflow-fix redeploy** (PR #127, source
+> `soroban/{yieldissuer,yt,ytmarket}` @ commit `2f34586`), fixing an i128 mul-before-div overflow: the
+> pro-rata/cost math now uses an overflow-safe `mul_div` via a 256-bit `I256` intermediate. Re-VERIFIED
+> (`stellar contract fetch` sha256 == reproducible build, all 3; YT wasm is byte-identical to its prior
+> deploy, only its id changed via the new issuer admin). Re-AUDITED (RWA Bridge 5 + Stellar session):
+> delta = the `mul_div` helper at 4 sites (claim_yield/claimable_yield/buy/quote_buy) only; **0
+> Crit/High/Med**. Explorers: [YieldIssuer](https://stellar.expert/explorer/testnet/contract/CD7DADUDMQRWOAANVV37U6233RO7YTCTTL6R3X7ZIBWUQNUQR7WS76SK), [YT](https://stellar.expert/explorer/testnet/contract/CCMZ6UES2XLHKOQ7O74HE2T4IQFFNULBU3PCWPQUDTV5XJB656VF5FMU), [YTMarket](https://stellar.expert/explorer/testnet/contract/CBVBHAHBBUMOCCEMFDEZFNKU3TYBFGT2F7WWRCYXWBHF7NYHG7R53QJ2).
+>
+> **Supersession history (gap documented, not hidden).** Yield lineage: original 2026-06-03
+> (`CDOHKXC..`/`CBTRU547..`/`CCXKKM7I..`, the ids previously in THIS ledger) -> #79 deposit-time redeploy
+> 2026-06-21 (`CDUHJUGS..`/`CALXF3KW..`/`CBL2JAZ6..`) -> #127 overflow-fix 2026-06-28 (current, above).
+> The 2026-06-21 redeploy was gate-passed in the main-repo ledger (PR #86) but its public-repo re-sync
+> was skipped, so this public ledger jumped original -> #127. (Also: the main-repo
+> `docs/public/CONTRACT-VERIFICATION-AUDIT-LEDGER.md` copy and this public-repo copy have drifted and
+> should be reconciled to one source of truth.)
+
+## Stacks (Clarity, Testnet4)
+
+**Non-EVM standard:** Clarity source is on-chain-readable; "Verified" = on-chain source == repo source at
+a commit; "Audited" = clarinet check + npm tests + a structured access-control / arithmetic review.
+
+**Overflow-fix redeploy 2026-06-28 (PR #129).** The Stacks yield/market had the same
+`(* a b)`-before-`/` u128 overflow as the Soroban port (Clarity uint is 128-bit, no 256-bit widen), so
+the fix is a new `stx-math` long-division `mul-div-down` = `floor(a*b/c)` computed without ever forming
+`a*b`. The two yield/market contracts were redeployed under v2 names (Clarity names immutable). VERIFIED:
+on-chain source `== #129` repo source for all 3 (independent `/v2/contracts/source` fetch + diff,
+trailing-newline only). AUDITED (RWA Bridge 5 + Stacks session): the `mul-div-down` step-invariant proof
+is correct and equals the Soroban floor result; delta = the 4 yield/market sites only; **0 Crit/High/Med**.
+Deployer principal `ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW`.
+
+| Contract | Principal.Name | Verified (explorer) |
+|---|---|---|
+| stx-math | `ST1RSK6..QDQZW.stx-math` | [explorer](https://explorer.hiro.so/txid/ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-math?chain=testnet) |
+| stx-yield-issuer-v2 | `ST1RSK6..QDQZW.stx-yield-issuer-v2` | [explorer](https://explorer.hiro.so/txid/ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-yield-issuer-v2?chain=testnet) |
+| stx-yt-market-v2 | `ST1RSK6..QDQZW.stx-yt-market-v2` | [explorer](https://explorer.hiro.so/txid/ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-yt-market-v2?chain=testnet) |
+
+> The rest of the Stacks set (stx-mbt, stx-susdc, stx-yt, stx-lending-vault, the bridge contracts) is
+> unchanged by this redeploy; recording the full Stacks set here is tracked as a follow-up.
 
 ## Not live (documented for completeness)
 
