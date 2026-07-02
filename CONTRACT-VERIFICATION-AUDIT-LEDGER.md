@@ -14,7 +14,8 @@ scanners; expected, not a finding.
 > the source-based audit ([SECURITY-REVIEW-2026-06-17](audits/SECURITY-REVIEW-2026-06-17.md): 0
 > Critical/High/Medium across three independent analyzers) covers all EVM chains (one source, same
 > bytecode everywhere) plus the Solana programs and the 6 Stellar/Soroban contracts (reproducible
-> WASM-hash verified + audited). Base and Astar/Shibuya are NOT live (see notes).
+> WASM-hash verified + audited). Astar Shibuya was re-activated 2026-06-19 (yield + lending redeployed;
+> all 5 explorer-verified). Base is NOT live (see notes).
 >
 > **On the "free scanner" score:** the public `solidityscan.com/quickscan/...` link is a rug-pull /
 > honeypot THREAT detector, not a code audit - it penalizes the by-design compliance controls
@@ -85,22 +86,35 @@ library code - identical source already verified on Sepolia + Amoy.)
 Explorer: `https://soneium-minato.blockscout.com/address/<addr>`. TLPT-ecosystem contracts verified:
 OperatorAllowlist `0x5fe9d900945b60b3becede4382bed2653ec99d40`, TLPTFaucet `0x8c57abe7cf1330346eb760edaee380a66d3f42f7`,
 TLPTSale `0xe5e1e4b594c343c1e9bac0730b25fd4ab21f7389`, TLPTStaking `0xf3186574c8a0c0b3e235704bad389b78604b2745`,
-TestUSDC `0x71a8e443f223cfe59498968758db49f2d114dce2`.
+TestUSDC `0x71a8e443f223cfe59498968758db49f2d114dce2`. (Minato's MBT/bridge is currently hidden in the UI.)
 
-**MBT bridge stack , LIVE + source-verified 2026-06-28** (Minato re-enabled, in MBT_CHAIN_IDS; supersedes the prior "hidden in UI" note):
+## Astar Shibuya (81) - Blockscout - COMPLETE
 
-| Contract | Address |
-|---|---|
-| MBT (RWATokenCCT) | `0x690ab8d7a6a96f49d65f113c5adcd89111480232` |
-| Pool (BurnMintTokenPool 1.5.1) | `0xb4908accabcba9ce56ef0324b9695a88e3dd2534` |
-| PolicyEngine proxy | `0x5d273aae0547fd33c0c5247487a160cd26f38fe4` |
-| PolicyEngine impl | `0x49f1aa7c252183e79d4944c54698a335ed65c150` |
-| AllowPolicy proxy | `0xa06b827bb452bc3e2caea0eee38b2186a28e99e1` |
-| AllowPolicy impl | `0x19807c563746ab8fa5815c147cc51141ead600c2` |
-| PausePolicy proxy | `0xaaa3a1ef510b029d0949c242372e535bf3702c8f` |
-| PausePolicy impl | `0xcbe81190b7637136099c35f88e71fb2d04d4a7f2` |
+Explorer: `https://shibuya.blockscout.com/address/<addr>`. Yield + lending stack redeployed 2026-06-19
+from current source (PR #63 `script/DeployShibuyaYieldStack.s.sol`; run via a viem one-tx-at-a-time
+deployer on the public RPC, the foundry tooling cannot burst-call this node). Wired to the
+already-verified Shibuya MBT `0xF08a207bb7D0198356ED4Fffd555Ee7129E2b8f5` + shared AllowPolicy
+`0xce8C237c6b8bF91df589eA740d4d65Cbb75F7DDd` (MBT + ACE proxies verified earlier; bridge stack was
+already live). Deployer `0xFc9933C8896715c1f3ADF9b8250ac051a95Fd33c` = AllowPolicy owner, so
+issuer/market/vault were allowlisted in the same run. Astarium terms: LTV 80% (flagship, tops Plume's
+78%), rate 3.5%, price $10. Independently confirmed by session 5: on-chain bytecode present for all 5
+(eth_getCode 1927-5031 bytes) and Blockscout `is_verified=true` for all 5 below (compiler
+v0.8.24+commit.e11b9ed9; YieldToken needed a one-time poke tx to index, see its row).
 
-solc 0.8.24 / optimizer 200. The 3 ACE contracts are ERC1967 proxy+impl pairs; impl addresses confirmed via on-chain ERC1967 slot reads matching the proxies in `chains.ts`. Pool `typeAndVersion` = "BurnMintTokenPool 1.5.1". Enforced policy chain checked via `getPolicies(MBT, transfer/transferFrom/mint)` = [AllowPolicy `0xa06b827b...`, PausePolicy `0xaaa3a1ef...`] (no orphan-policy trap). Lane verified-live both directions Sepolia<->Minato 2026-06-28 (canary + seq 1637 SUCCESS).
+| Contract | Address | Verified | AI audit | Notes |
+|---|---|---|---|---|
+| TestUSDC | `0x817b54C6E13F374B99A0C5e78443bFecCc0b0a2A` | [VERIFIED](https://shibuya.blockscout.com/address/0x817b54C6E13F374B99A0C5e78443bFecCc0b0a2A#code) | 0 Crit/High/Med (SECURITY-REVIEW-2026-06-17, same source/bytecode as Sepolia/Amoy/Plume) | yield + lending currency |
+| YieldIssuer | `0xbdA5e22c7037898D5C03b835487134F322B82c41` | [VERIFIED](https://shibuya.blockscout.com/address/0xbdA5e22c7037898D5C03b835487134F322B82c41#code) | same | mints YT-MBT, wired to MBT + AllowPolicy |
+| YieldToken (YT-MBT) | `0x9e6e00c2170b50395CBdaAe61242438224bCbd4E` | [VERIFIED](https://shibuya.blockscout.com/address/0x9e6e00c2170b50395CBdaAe61242438224bCbd4E#code) | same | shares MBT's AllowPolicy; CREATE'd in the YieldIssuer constructor. Shibuya Blockscout does not index internal-CREATE traces, so it stayed `is_contract=false` (no creation tx); unblocked by sending one harmless top-level tx to it (`approve(deployer,0)`, `0x4c6f2693e22c84b14a3ba78ca35da9eb857b2984846c9f89ba67ce07542c50d7`, zero economic effect), after which standard-input verify succeeded |
+| YTMarket | `0xFf69A2c111759777693e348727BD157db4Fb8AB2` | [VERIFIED](https://shibuya.blockscout.com/address/0xFf69A2c111759777693e348727BD157db4Fb8AB2#code) | same | fixed-price YT secondary market |
+| LendingVault (Astarium) | `0x3F1d5141391F5EDe23A84EbdDD2abB3e56Dd9519` | [VERIFIED](https://shibuya.blockscout.com/address/0x3F1d5141391F5EDe23A84EbdDD2abB3e56Dd9519#code) | same | borrow USDC against MBT, LTV 80% |
+
+> The AI-audit is satisfied by source identity: all 5 are the same contracts (`src/defi/TestUSDC.sol`,
+> `src/yield/YieldIssuer.sol`, `src/yield/YieldToken.sol`, `src/defi/YTMarket.sol`,
+> `src/defi/LendingVault.sol`) already covered by the EVM 3-analyzer run in
+> [SECURITY-REVIEW-2026-06-17](audits/SECURITY-REVIEW-2026-06-17.md) (0 Crit/High/Med; one source,
+> same bytecode everywhere; compiler v0.8.24 confirmed on-chain). All 5 are now explorer-verified, so
+> the yield.ts/defi.ts UI wiring PR can proceed for IA preview-verification, per the gate.
 
 ## Solana (devnet) - Rust/Anchor
 
@@ -138,69 +152,72 @@ standard (cargo-audit + clippy + per-contract access-control review) summarized 
 | sMBT | `CCYOGL2C7OKWDEN7XTIVLS6GFGOUEQQHER36YV5BHLPDCJJM3FIO3TD5` | `029c83b1707474897734c4399c166415ef6e114011e7f760846e40b17ec6d263` |
 | sUSDC | `CAS5G444JM4CDTX33ALSMAEJDMKMNKKUIHC3PV7N24KDRENRUVA4DCPO` | `f89ba0deca1c5bd0d5ad5b0136ac7abb605f38d91f92f6d0419c56ef9b9843e9` |
 | LendingVault (Polaris) | `CB7WBLOFLDFJYKCYFOJYICDW3PUJ66IWIGJMP3P7MDDSXNGY5ON3JINS` | `9140af1a878cc74603a105e1516c628b98fdb5a78e03e4ede1a616ee18b45983` |
-| YieldIssuer | `CD7DADUDMQRWOAANVV37U6233RO7YTCTTL6R3X7ZIBWUQNUQR7WS76SK` | `96903db2fe04216b207a855d0b6225e8374d11bcc70de770749e46c7281f4b5b` |
-| YT | `CCMZ6UES2XLHKOQ7O74HE2T4IQFFNULBU3PCWPQUDTV5XJB656VF5FMU` | `662f81c410fb6768a2b5f0c0b9315af3d2cb781bfac7a44db9c8ec022784058a` |
-| YTMarket | `CBVBHAHBBUMOCCEMFDEZFNKU3TYBFGT2F7WWRCYXWBHF7NYHG7R53QJ2` | `2b613c8773b5a63961636f68e9328d871891308d9adb3f317df14ba6196a3b16` |
+| YieldIssuer (deposit-time) | `CDUHJUGS7KNRTWPT2J4GZ6IITN5UZU2OYAYGGEAFSP3A3XQTO3NLUSNX` | `f47cdfa87de32e52839ba817b61a11210d394a807bd9289b9ef8416060524283` |
+| YT (deposit-time) | `CALXF3KWRM47INN5MDORVWRG652ZYYBBWEECEYPBVKCDGGVCICSKMPVR` | `662f81c410fb6768a2b5f0c0b9315af3d2cb781bfac7a44db9c8ec022784058a` |
+| YTMarket | `CBL2JAZ6IC2QV6CWSYUMBZTX2SQHABJGGDCII4QJDGTH2657SP7PUQLC` | `88c17661175614faa61894c59e04e437a46cff80972ef482edac26fe4ac52a1f` |
 
-> Source is on main as of commit `7d46c531` (PR #58, `feat: add Soroban contract sources to version
-> control`, 36/36 native tests green), so the cited commit is reachable via `git checkout 7d46c531`.
+> **Superseded 2026-06-21 , deposit-time snapshot redeploy (parity with EVM + Stacks, PR #79).** The
+> YieldIssuer / YT / YTMarket rows above are the NEW ids; old ids kept for traceability:
+> YieldIssuer `CDOHKXC63NMVZ6BRK3MYCCEK5LQCUB227YI53EEPYMBGUZRONP6PCAFG` -> `CDUHJUGS...`,
+> YT `CBTRU54726K5WJV6VMIBFY4WW4SHRJF6DEQB7KKAWF4HAXECAVBISPVC` -> `CALXF3KW...`,
+> YTMarket `CCXKKM7IVCDAYNI2FCN6DILBTDY37ZVUJB6TUWJEF4TS3IBCMY6QDFKD` -> `CBL2JAZ6...`.
+> New YieldIssuer + YT source: `soroban/{yieldissuer,yt}` @ commit `3942874` (PR #79). Reproducible build
+> (`stellar contract build`) reproduces the on-chain wasm sha256 for all 3 (`stellar contract fetch`
+> match confirmed). Audit: the only new surface is the ERC20-Snapshot additions , `snapshot()` is
+> issuer-admin-only (same gate as mint), `balance_of_at`/`total_supply_at` are range-guarded read views,
+> the lazy checkpoints live inside `receive_balance`/`spend_balance`/`add_supply` (no new entrypoint),
+> compliance gating unchanged; cargo-audit/clippy/fmt clean; the snapshot core was cross-checked against
+> `src/yield/YieldToken.sol` by session 5 (`value_at` == lower-bound `_lowerBinaryLookup`, live fallback,
+> invalid-id revert). YTMarket wasm is byte-identical to the prior deploy (`88c1766...`); only its id
+> changed (re-pointed to the new YT + re-allowlisted), so its audit carries over. **0 Critical/High/Medium.**
+> sMBT / sUSDC / LendingVault are unchanged, still @ `7d46c531` (PR #58).
 
-> **Yield-stack redeploys (YieldIssuer/YT/YTMarket only; sMBT/sUSDC/Polaris unchanged).** The three
-> yield rows above are the **2026-06-28 overflow-fix redeploy** (PR #127, source
-> `soroban/{yieldissuer,yt,ytmarket}` @ commit `2f34586`), fixing an i128 mul-before-div overflow: the
-> pro-rata/cost math now uses an overflow-safe `mul_div` via a 256-bit `I256` intermediate. Re-VERIFIED
-> (`stellar contract fetch` sha256 == reproducible build, all 3; YT wasm is byte-identical to its prior
-> deploy, only its id changed via the new issuer admin). Re-AUDITED (RWA Bridge 5 + Stellar session):
-> delta = the `mul_div` helper at 4 sites (claim_yield/claimable_yield/buy/quote_buy) only; **0
-> Crit/High/Med**. Explorers: [YieldIssuer](https://stellar.expert/explorer/testnet/contract/CD7DADUDMQRWOAANVV37U6233RO7YTCTTL6R3X7ZIBWUQNUQR7WS76SK), [YT](https://stellar.expert/explorer/testnet/contract/CCMZ6UES2XLHKOQ7O74HE2T4IQFFNULBU3PCWPQUDTV5XJB656VF5FMU), [YTMarket](https://stellar.expert/explorer/testnet/contract/CBVBHAHBBUMOCCEMFDEZFNKU3TYBFGT2F7WWRCYXWBHF7NYHG7R53QJ2).
->
-> **Supersession history (gap documented, not hidden).** Yield lineage: original 2026-06-03
-> (`CDOHKXC..`/`CBTRU547..`/`CCXKKM7I..`, the ids previously in THIS ledger) -> #79 deposit-time redeploy
-> 2026-06-21 (`CDUHJUGS..`/`CALXF3KW..`/`CBL2JAZ6..`) -> #127 overflow-fix 2026-06-28 (current, above).
-> The 2026-06-21 redeploy was gate-passed in the main-repo ledger (PR #86) but its public-repo re-sync
-> was skipped, so this public ledger jumped original -> #127. (Also: the main-repo
-> `docs/public/CONTRACT-VERIFICATION-AUDIT-LEDGER.md` copy and this public-repo copy have drifted and
-> should be reconciled to one source of truth.)
+## Stacks (Testnet4, Clarity) - VERIFIED (on-chain source == repo) + AUDITED (0 Crit/High/Med)
 
-## Stacks (Clarity, Testnet4)
+Deployer principal `ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW`. Clarity publishes contract source
+on-chain natively (readable on the Hiro explorer), so "Verified" = the on-chain source matches the
+repo source byte-for-byte. Confirmed 2026-06-20 by fetching each contract from the Hiro testnet API
+(`/v2/contracts/source/<principal>/<name>`) and diffing against `clarity/contracts/` on main @ commit
+`3942874` (merged via PR #71 / #74 / #77 / #78): all 5 matched exactly (e.g. stx-yt 10969b == 10969b).
 
-**Non-EVM standard:** Clarity source is on-chain-readable; "Verified" = on-chain source == repo source at
-a commit; "Audited" = clarinet check + npm tests + a structured access-control / arithmetic review.
+Audited 2026-06-20 (RWA Bridge session 5): `clarinet check` clean (clarinet 3.20, 7 contracts, 0
+errors, lint-only warnings) + a structured per-contract access-control / authorization / value-
+accounting / Clarity-safety review. Result: **0 Critical / High / Medium.** The deposit-time snapshot
+model (`stx-yt` / `stx-yield-issuer`) was additionally cross-checked against `src/yield/YieldToken.sol`
+(session 5) and the compliance gating + market against the Stellar suite. Findings were INFO/by-design
+only: owner-mintable demo tokens, ungated settlement currency (`stx-susdc`), the 64-window checkpoint
+demo cap, and cross-period YT re-mint (self-consistent under the deposit-time model).
 
-**Overflow-fix redeploy 2026-06-28 (PR #129).** The Stacks yield/market had the same
-`(* a b)`-before-`/` u128 overflow as the Soroban port (Clarity uint is 128-bit, no 256-bit widen), so
-the fix is a new `stx-math` long-division `mul-div-down` = `floor(a*b/c)` computed without ever forming
-`a*b`. The two yield/market contracts were redeployed under v2 names (Clarity names immutable). VERIFIED:
-on-chain source `== #129` repo source for all 3 (independent `/v2/contracts/source` fetch + diff,
-trailing-newline only). AUDITED (RWA Bridge 5 + Stacks session): the `mul-div-down` step-invariant proof
-is correct and equals the Soroban floor result; delta = the 4 yield/market sites only; **0 Crit/High/Med**.
-Deployer principal `ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW`.
-
-| Contract | Principal.Name | Verified (explorer) |
+| Contract | Contract ID | Role |
 |---|---|---|
-| stx-math | `ST1RSK6..QDQZW.stx-math` | [explorer](https://explorer.hiro.so/txid/ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-math?chain=testnet) |
-| stx-yield-issuer-v2 | `ST1RSK6..QDQZW.stx-yield-issuer-v2` | [explorer](https://explorer.hiro.so/txid/ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-yield-issuer-v2?chain=testnet) |
-| stx-yt-market-v2 | `ST1RSK6..QDQZW.stx-yt-market-v2` | [explorer](https://explorer.hiro.so/txid/ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-yt-market-v2?chain=testnet) |
+| stx-susdc | `ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-susdc` | demo stablecoin (SIP-010, ungated by design) |
+| stx-lending-vault | `ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-lending-vault` | borrow stx-susdc vs stx-mbt collateral, 50% LTV |
+| stx-yt | `ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-yt` | yield token, compliance-gated + ERC20-Snapshot |
+| stx-yield-issuer | `ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-yield-issuer` | period yield, deposit-time model |
+| stx-yt-market | `ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-yt-market` | YT secondary market (escrow) |
+| stx-mbt (Phase A) | `ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-mbt` | the regulated RWA collateral token (compliance-gated SIP-010 + bridge mint/burn) |
+| sip-010-trait (Phase A) | `ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.sip-010-trait` | SIP-010 fungible-token trait (pure interface) |
 
-> The rest of the Stacks set (stx-mbt, stx-susdc, stx-yt, stx-lending-vault, the bridge contracts) is
-> unchanged by this redeploy; recording the full Stacks set here is tracked as a follow-up.
+Explorer: `https://explorer.hiro.so/txid/<principal>.<name>?chain=testnet`. The two Phase-A contracts
+(`stx-mbt`, `sip-010-trait`; source @ commit `0a4805aa`, unchanged since) were verified the same way:
+on-chain Hiro source == repo byte-for-byte, independently confirmed 2026-06-21 (session 5). `stx-mbt`
+audited (3 separated roles all gated on `contract-caller`; compliance gate complete on transfer +
+bridge-mint + bridge-burn; relayer-only, replay-guarded mint; no admin drain): **0 Crit/High/Med.**
+`sip-010-trait` is a pure interface (source-match only).
+Deploy-time prerequisite (wiring, not a code finding): the lending vault, YT market, and yield issuer
+must be allowlisted on `stx-mbt`, and `stx-yt`'s minter must be the yield issuer , Stacks session
+confirmed done. Per the gate, `VITE_STACKS_ENABLED` stays OFF on the public URL until these rows are
+recorded AND `pre-demo-check` is green.
 
-## CCID Phase-0 (Sepolia 11155111) - shadow - verify+audit gate CLEARED 2026-06-29
+## CCID compliance-identity stack (Sepolia + Plume) - recorded 2026-07-02
 
-Chainlink ACE Cross-Chain Identity registries (vendored `lib/chainlink-ace`, unmodified), deployed
-SHADOW: the validator is NOT attached to the live MBT PolicyEngine, so nothing is wired into any
-public config / dropdown yet. Build `FOUNDRY_PROFILE=ccid` (via_ir=true, optimizer 200). Authorized
-issuer (sole signer): `0x3055698887538cc6cF0d408e744B04F0806CB6E1` (host-generated; prior keys
-`0xdC18...` [transcript-leaked] and `0x8fc5af67...` [unused] both deauthorized on-chain).
+**What shipped:** on-chain KYC credentials (ACE Cross-Chain Identity). Admission on attached
+chains = AllowPolicy AND a `common.kyc` credential, enforced by a validator policy in the token's
+PolicyEngine chain. Credentials are issued automatically by the Didit-driven kyc-issuer service
+(IONOS host, issuer key `0x3055698887538cc6cF0d408e744B04F0806CB6E1`, sole authorized signer).
 
-Verification (Bridge 5, INDEPENDENT): all 5 implementations recompiled from source with the ccid
-profile and bytecode-matched byte-identical (metadata-stripped) to the on-chain runtime; all 5 proxies
-are the canonical OZ ERC1967Proxy (byte-identical, each pointing at its recorded impl via the ERC1967
-slot). Also Etherscan source-verified by the CCID channel. Audit: proxy->impl integrity OK; registry-
-write-gate proven (all 7 mutation selectors gated to the issuer); only 0x3055 authorized; validator +
-PolicyEngine `typeAndVersion` = 1.0.0.
-
-| Contract | Proxy | Implementation |
+### Sepolia (Phase 0 #134 -> attach 2026-07-02, ENFORCING since block 11189744)
+| Contract | Proxy | Impl |
 |---|---|---|
 | Registry-admin PolicyEngine | `0xfB1762FbA9630414d9A8940C9f0037e0eBbDEc33` | `0xb2C30E602A9a2179b8372c63208Bc5Ea9A1e1C22` |
 | OnlyAuthorizedSenderPolicy (issuer gate) | `0xd494922fC60EC18D197C09cb6a9f70518A1CAD7E` | `0x89E5318a96E25d725A4CFD61b64917C29252ad24` |
@@ -208,20 +225,47 @@ PolicyEngine `typeAndVersion` = 1.0.0.
 | CredentialRegistry | `0xDc5Acd767633E7B29C7f317DBB57c52F597bCe6F` | `0x918c3d3f99166C7f2686Dd2322C9B3A52C49788d` |
 | CredentialRegistryIdentityValidatorPolicy | `0xdAbf8046A6fa3b56Ab55fA4154e0fD6679b0d717` | `0x9d80e7Fdfb81f613b05cA484432CDbfD50e71e16` |
 
-FINDING (mainnet-attach gate, NOT testnet-blocking): the entire admin surface , UUPS upgrade of all 5
-impls, PolicyEngine policy admin, and issuer authorizeSender , is a single deployer EOA
-`0xFc9933C8896715c1f3ADF9b8250ac051a95Fd33c`. Before any mainnet CCID: move admin to a multisig/timelock
-and confirm that key is cold/hardware. Validator-attach (Phase 2) is a separate future gate.
+Gate history: Phase-0 cleared the verify+audit gate at PR #134 (session 5). Validator ATTACH
+2026-07-02, deployer-signed: transfer `0xdc1fec02b1180a62f4cc66cc16071623e3798f47b2ec2baf083bbfe1db278414`,
+transferFrom `0x88cc46d6a4b7fee3e177cd268c0b45b89d450e58e3aff630c9c6efa14d4b0e70`,
+mint `0xa402bdfecfc1ef088dbac349fb12426e8cdb6f0e128645a932ceaa223b33d419`.
+Independent post-attach composition verification (session 6, coordinator): getPolicies on the MBT
+engine `0xd4b9F980f09f0871C753a7d558B5c500DA1617a3` = [AllowPolicy, PausePolicy, Validator] on all
+three selectors; credentialed wallets (incl. a live Didit-KYC wallet) pass, non-KYC wallet reverts
+`PolicyRunRejected`. Pre-attach registry parity 40/40 (CCID channel).
+
+### Plume Testnet (Phase 0-2 proving run 2026-06-29, ENFORCING; gate cleared 2026-07-02)
+| Contract | Proxy | Impl |
+|---|---|---|
+| Registry-admin PolicyEngine | `0xab27438dc2bA528D4A29A1Ab55406C01b70855e2` | `0x6c61658cfe0e5794f739782433a8011a6107a570` |
+| OnlyAuthorizedSenderPolicy | `0xA861E26770eC5DdCf84F43F281D373368f6F7Db3` | `0x37b3264481c68dccef623d44b0e83ffc15a22cdd` |
+| IdentityRegistry | `0xd0ba47398119D21051c5b1bF1ED59195cE558b4A` | `0x410cd380251cb3005dfb1882d9d678c1095d41f2` |
+| CredentialRegistry | `0xABe4a790fb07340e9740470A45A5fF92Fa5fD560` | `0x564f6f04c3d4fad7d019ecf1414e14863d739aae` |
+| CredentialRegistryIdentityValidatorPolicy | `0x65Ddd59863d0A2F68E0953efB1226FC8A4b0021D` | `0xcaa55642befbaf6301be79dac88487ebe665ed6f` |
+
+Full verify+audit gate run by session 6 (coordinator) 2026-07-02: **bytecode-match 10/10** against
+the repo's viaIR (`FOUNDRY_PROFILE=ccid`) artifacts, immutable ranges masked; **getPolicies exact**
+([AllowPolicy `0x2aedDb48...`, PausePolicy `0x5D273AAE...`, Validator]) on all three selectors;
+**enforcement independently reproduced** (allowlisted-but-uncredentialed transfer reverts
+`PolicyRunRejected` named by the validator, "account identity validation failed"; state restored).
+OPEN item: Blockscout explorer-verification runs for the 10 Plume addresses (bytecode-match stands
+in as source verification meanwhile).
+
+### Onboarding-authority proxy (KycAllowlister)
+| Chain | Proxy | Status |
+|---|---|---|
+| Sepolia | `0x1D58820C24ba48a9b09B1406a22F6035E4f12e54` | Audited + approved (session 5, #136/#139); owns AllowPolicy `0x7858b6e6...`; allowlister = issuer key `0x3055...`; live issuance traffic since 2026-07-02 (Didit E2E) |
 
 ## Not live (documented for completeness)
 
 - **Base Sepolia (84532):** NOT a supported network (`SUPPORTED_CHAINS` excludes it). Early test
   deploys exist but several addresses have no code (deterministic-address artifacts). Nothing live
   to verify; revisit only if Base is added to the dApp.
-- **Astar Shibuya (81):** DEPRECATED. MBT token + pool are zeroed in `chains.ts` and Shibuya is
-  removed from `SUPPORTED_CHAINS`. Explorer is Subscan (no forge verification path). Revisit only
-  if the chain is re-enabled.
+
+(Astar Shibuya was previously listed here as DEPRECATED; it was re-activated 2026-06-19 and now has
+its own verified section above.)
 
 ---
-_Last updated 2026-06-17 by RWA Bridge session 5. All live-network canonical protocol contracts
-verified; source-based audit (3 analyzers, 0 Crit/High/Med) covers all EVM chains + Solana._
+_Last updated 2026-07-02 by RWA Bridge session 6 (coordinator). All live-network canonical protocol contracts
+verified (Astar Shibuya 5/5); source-based audit (3 analyzers, 0 Crit/High/Med) covers all EVM
+chains + Solana._
