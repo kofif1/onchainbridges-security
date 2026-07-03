@@ -255,6 +255,7 @@ in as source verification meanwhile).
 | Chain | Proxy | Status |
 |---|---|---|
 | Sepolia | `0x1D58820C24ba48a9b09B1406a22F6035E4f12e54` | Audited + approved (session 5, #136/#139); owns AllowPolicy `0x7858b6e6...`; allowlister = issuer key `0x3055...`; live issuance traffic since 2026-07-02 (Didit E2E) |
+| Sonic Testnet | `0x277Ca924d2f6d1B0e5D7D195d880f75E1e3e78da` | **WrappedMBTAllowlister** (split-operator owner-proxy for wMBT v2). Gate run by session 6 (coordinator) 2026-07-04: PR #162 review clean (no compliance bypass / reentrancy / fund custody; renounceOwnership disabled), 20/20 foundry tests independently reproduced, **source-verified on Sonicscan** (Etherscan V2 API), deploy tx `0xd83122c6...ec2bb9`. OWNS wMBT v2 `0x670c3a58...` since transferOwnership tx `0x0718b553...2af53` (pre-transfer live check: `minters[CRE consumer 0xa56efb5a]=true`, mint path independent of ownership). Hot allowlister = issuer key `0x3055...` (allow/disallow only); cold admin = `0xFc9933...` (pause/minter/rotate/escape). First Tier-1 write path for cross-chain verification; live smoke test = 5-wallet backfill via the proxy, tx `0xf1b077a4...c79b37` |
 
 ## Not live (documented for completeness)
 
@@ -266,6 +267,6 @@ in as source verification meanwhile).
 its own verified section above.)
 
 ---
-_Last updated 2026-07-02 by RWA Bridge session 6 (coordinator). All live-network canonical protocol contracts
+_Last updated 2026-07-04 by RWA Bridge session 6 (coordinator). All live-network canonical protocol contracts
 verified (Astar Shibuya 5/5); source-based audit (3 analyzers, 0 Crit/High/Med) covers all EVM
 chains + Solana._
