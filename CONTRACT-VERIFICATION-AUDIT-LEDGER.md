@@ -276,6 +276,16 @@ All 10 contracts **source-verified** (Etherscan V2: Sepolia/Amoy; Blockscout: Pl
 | Soneium Minato | `0xE258a260a7A0a917a1cacc58281420A445Aa0730` | `0x3a044d883F8277de07fC315E9dB5f2ECB0eB2969` |
 | Astar Shibuya | `0xa701147b7C1a511790BE503675Df1F8B09caBAa9` | `0x7798F2F58C25186F03DF1a40Eed08A4905C3b5F7` |
 
+> **Badge cohort rule + 2026-07-04 stray-mint incident (recorded for accountability):** the badge
+> cohort is PER-CHAIN (the chain's credentialed EOAs; protocol contracts are credentialed for
+> admission parity but NEVER badged - badge = human KYC marker). During the Shibuya mint run the
+> coordinator minted 2 badges to SEPOLIA-cohort wallets (0x044367F8, 0x45d67462) inferred to be in
+> the Shibuya cohort without the authoritative list - both wallets read credentialed=false on
+> Shibuya, so the live-truth renderer showed REVOKED (never a false VALID; the mirror-only invariant
+> meant zero compliance impact). Both burned by the owner same sitting. STANDING RULE: no signed
+> writes in the badge lane without the CCID channel's authoritative cohort enumeration. Final badge
+> matrix: Sepolia 23/23, Amoy 19/19, Plume 21/21, Minato 4/4, Shibuya 5/5 credentialed EOAs badged.
+>
 > **Deterministic-address collision warnings (chain-qualify ALWAYS):** Shibuya's RENDERER address
 > equals PLUME'S SBT address (`0xa701147b...` - maximally confusable); Amoy's SBT `0x54f1Eaf1...`
 > and both Plume badge addresses also collide with backfill-cohort wallet addresses on other chains.
