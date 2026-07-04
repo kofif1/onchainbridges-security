@@ -257,6 +257,30 @@ in as source verification meanwhile).
 | Sepolia | `0x1D58820C24ba48a9b09B1406a22F6035E4f12e54` | Audited + approved (session 5, #136/#139); owns AllowPolicy `0x7858b6e6...`; allowlister = issuer key `0x3055...`; live issuance traffic since 2026-07-02 (Didit E2E) |
 | Sonic Testnet | `0x277Ca924d2f6d1B0e5D7D195d880f75E1e3e78da` | **WrappedMBTAllowlister** (split-operator owner-proxy for wMBT v2). Gate run by session 6 (coordinator) 2026-07-04: PR #162 review clean (no compliance bypass / reentrancy / fund custody; renounceOwnership disabled), 20/20 foundry tests independently reproduced, **source-verified on Sonicscan** (Etherscan V2 API), deploy tx `0xd83122c6...ec2bb9`. OWNS wMBT v2 `0x670c3a58...` since transferOwnership tx `0x0718b553...2af53` (pre-transfer live check: `minters[CRE consumer 0xa56efb5a]=true`, mint path independent of ownership). Hot allowlister = issuer key `0x3055...` (allow/disallow only); cold admin = `0xFc9933...` (pause/minter/rotate/escape). First Tier-1 write path for cross-chain verification; live smoke test = 5-wallet backfill via the proxy, tx `0xf1b077a4...c79b37` |
 
+### Verification badge SBT (component C - soulbound wallet badge, MIRROR-ONLY)
+
+Deployed 2026-07-04 (Ilan signing sitting, CCID channel build). Gate run by session 6 (coordinator)
+PRE-deploy on branch `ccid-soulbound-badge` @ e3ae73b: line-by-line review clean (soulbound `_update`
+chokepoint closes every movement path; approvals hard-revert; one-per-wallet tokenId=uint160(wallet);
+two-step ownership, no renounce; renderer swap can never touch token semantics; renderer fails to
+UNKNOWN never VALID), 8/8 foundry tests independently reproduced. **MIRROR-ONLY invariant:** never
+read for admission by anything; compliance enforcement stays exclusively with the ACE validators.
+All 10 contracts **source-verified** (Etherscan V2: Sepolia/Amoy; Blockscout: Plume/Minato/Shibuya;
+`FOUNDRY_PROFILE=ccid`). Owner = `0xFc9933...` (two-step), issuer = `0x3055...` on every chain.
+
+| Chain | BadgeRendererV1 | VerificationBadgeSBT |
+|---|---|---|
+| Sepolia | `0x0dad8806B7768A8E6bca3f9DbA8419F27C08cA9d` | `0x11D0c9bC018F3B3D22Fc1AbFEc138a278AE3f30D` |
+| Polygon Amoy | `0x1714F8334728268fCd667f8228E62DA105AAA5A8` | `0x54f1Eaf13038364214D1E75F6bD143Cc80BBfffB` |
+| Plume Testnet | `0x62BD210F9e7B4889066Bd7bc360557c666af44F5` | `0xa701147b7C1a511790BE503675Df1F8B09caBAa9` |
+| Soneium Minato | `0xE258a260a7A0a917a1cacc58281420A445Aa0730` | `0x3a044d883F8277de07fC315E9dB5f2ECB0eB2969` |
+| Astar Shibuya | `0xa701147b7C1a511790BE503675Df1F8B09caBAa9` | `0x7798F2F58C25186F03DF1a40Eed08A4905C3b5F7` |
+
+> **Deterministic-address collision warnings (chain-qualify ALWAYS):** Shibuya's RENDERER address
+> equals PLUME'S SBT address (`0xa701147b...` - maximally confusable); Amoy's SBT `0x54f1Eaf1...`
+> and both Plume badge addresses also collide with backfill-cohort wallet addresses on other chains.
+> Same deployer+nonce coincidence class as the Base/Plume/Sonic collisions noted above.
+
 ## Not live (documented for completeness)
 
 - **Base Sepolia (84532):** NOT a supported network (`SUPPORTED_CHAINS` excludes it). Early test
@@ -267,6 +291,6 @@ in as source verification meanwhile).
 its own verified section above.)
 
 ---
-_Last updated 2026-07-04 by RWA Bridge session 6 (coordinator). All live-network canonical protocol contracts
+_Last updated 2026-07-04 (badge SBT sitting) by RWA Bridge session 6 (coordinator). All live-network canonical protocol contracts
 verified (Astar Shibuya 5/5); source-based audit (3 analyzers, 0 Crit/High/Med) covers all EVM
 chains + Solana._
