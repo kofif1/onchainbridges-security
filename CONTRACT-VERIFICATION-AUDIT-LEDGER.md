@@ -209,6 +209,58 @@ must be allowlisted on `stx-mbt`, and `stx-yt`'s minter must be the yield issuer
 confirmed done. Per the gate, `VITE_STACKS_ENABLED` stays OFF on the public URL until these rows are
 recorded AND `pre-demo-check` is green.
 
+### Stacks Tier-2 identity (deployed + rotated 2026-07-05, coordinator-gated)
+
+Cross-chain "verify once, everywhere" Tier-2 for Stacks: a native credential registry + a
+split-operator allowlister proxy that becomes `stx-mbt`'s compliance-admin. Gate-reviewed PASS on
+PR #170 (Clarity-only, no webapp cut). Deployed by the Stacks channel (single-signer), each step
+independently verified on-chain by the coordinator (Hiro reads + falsified reader): GATE 1
+(post-publish: all operators = deployer, admin NOT yet rotated) PASS, GATE 2 (post-rotation:
+`stx-mbt.get-compliance-admin` == the proxy principal, operators intact, nothing pre-issued) PASS,
+SMOKE (proxy `allow`->`is-allowed=true`->`revoke`->`false`, both `(ok true)`, admin undisturbed) PASS.
+
+| Contract | Contract ID | Role | Deploy txid |
+|---|---|---|---|
+| stx-credential-registry | `ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-credential-registry` | native KYC credential registry (`is-credentialed(who,cred-type)`; owner + issuer-operator = deployer) | `0x1a7c065f152a01fdb2c756a170e5bc6d8fbca23a8b15c21fcc8b4bc6069aba67` |
+| stx-kyc-allowlister | `ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-kyc-allowlister` | split-operator compliance-admin proxy for `stx-mbt` (allowlister-operator + pause-operator + owner = deployer); rotated to `stx-mbt` compliance-admin | `0x5adc674b459e7dc661e4a33dd165760a25f57682a6a385ce1bcf96c72120c243` |
+
+Rotation tx (`set-compliance-admin(stx-mbt)` -> proxy): `0x0ed7bbafb269cb4004eb87aa4c495363724406d4095122b0832a156e22c24e6c`.
+Smoke: allow `0x42223184eeb95e13c5272728b335e31135167c93b18c8cbcb07c0244abcb8189`, revoke `0x4ef1cfbc91c13dd76bad8c361ac8eccae514ea27b31677826d50339ac6757fad`.
+
+### Production verification badge (deployed + gated 2026-07-05) - PERMANENT
+
+`ST1RSK6GEJ4GP8QC1QNN91J1KW014FBZCMTAQDQZW.stx-verification-badge` (SIP-009 soulbound, reuses the existing
+`.nft-trait`). The wallet-visible production badge (replaces the throwaway spike). Deployed single-signer (Ilan),
+gated by coordinator. **VERIFIED** (deployed Hiro source, authoritative) + **AUDITED** (0 Crit/High/Med):
+73-line source; `transfer` body = unconditional `ERR-SOULBOUND` (u901), NO `nft-transfer?` path = HARD soulbound
+(can never move); mint/burn gated `contract-caller == issuer`, `set-token-uri`/`set-issuer`/`set-contract-owner`
+gated `contract-caller == contract-owner` (both init tx-sender = deployer; NO tx-sender-based gate = correct
+posture); mint idempotent via `badge-of` (no dupes); burn issuer-only + clears `badge-of`; MIRROR-ONLY (never read
+for admission - enforcement stays at the registry/compliance). On-chain verified: get-owner(u1)=`ST1KQ0H7CZEN0SQ5ANGRK8Y676H2MKGRZY4VGXQB9`,
+last-token-id=u1, get-token-uri(u1)=`https://demo.onchainbridges.com/badge/ob-verified.json` (font-baked PNG +
+CORS-served, SIP-016), has-badge(ST1KQ0H7)=true. txids: publish `0xbece9da251ac8c535b641b8e661814f2c6f73b5aaed5a619594fc4514f58389d`,
+set-token-uri `0xc6b26cc13d772fa8786366370fa582ac06b52e9482a0a82863d7c5fe2ad1aa91`, mint `0x20ae98415b19577be1d4fe9cdf02e8be28df0099fe0a92268b80b4e6ba906634`.
+Xverse ST3WWMG9 NOT minted (is-credentialed=false, deferred). In-wallet render = QA empirical check post-Hiro-index
+(the spike showed Hiro-caching alone does not guarantee wallet render). Formal PR link to be added when finalized (byte-identical to deployed).
+
+**THROWAWAY (NOT a permanent registry contract):** `stx-badge-spike` (SIP-009 soulbound badge spike)
++ `nft-trait`, deployed to demonstrate the wallet-visible badge; minted token u1 to `ST1KQ0H7CZEN0SQ5ANGRK8Y676H2MKGRZY4VGXQB9`
+(Leather) and u2 to `ST3WWMG93NPTFB16V7MYZ0YE7HS24YSMP75E70XZD` (Xverse); last-token-id=2, both owners verified on-chain.
+Wallet render finding (2026-07-05, EMPIRICAL - Ilan's live wallet check; supersedes prior API-layer inferences):
+Badge is DETECTED as a soulbound collectible in BOTH Leather (ST1KQ0H7, "Amount 1") AND Xverse (ST3WWMG9, "1 item")
+- the mint + soulbound mechanism works in both wallets. BUT the IMAGE DOES NOT RENDER in either (Leather: "Image
+currently unavailable"; Xverse: blank placeholder). Hiro having a valid cached PNG did NOT translate to wallet
+display. Real-badge fix = a FRESH production soulbound mint bound to the Tier-2 credential registry with a proper
+PNG SIP-016 image (font-independent art, CORS-served), NOT the spike - fresh mint required because Hiro has no
+manual re-index endpoint (POST .../refresh = 404), so editing the spike metadata won't update wallets. QA verifies
+render IN-WALLET before sign-off. Mint/compliance path clean (owner/soulbound/token-uri all verified on-chain).
+Soulbound confirmed on-chain: deployed `transfer` body is unconditional `ERR-SOULBOUND` (u901), no
+`nft-transfer?` path. token-uri `https://demo.onchainbridges.com/badge/badge-spike.json` (HTTP 200).
+Publish nft-trait `0xa3019fe5016a81d73e5a8aeee45be44bd3028db871b1768e0142aba7365908d4`, spike
+`0x1f5dfc0a569d3e6bb6fa89cb0c39b02f36195374861c0b079de98dce5acf6912`, mint
+`0x1944b28d50b036764c7cfa28cc593fb67ad97c8db78b72f99e723c886bc227a4`. Stacks channel to strip the
+Clarinet.toml entries + spike `.clar` at wind-down; do NOT promote to production without a fresh gate.
+
 ## CCID compliance-identity stack (Sepolia + Plume) - recorded 2026-07-02
 
 **What shipped:** on-chain KYC credentials (ACE Cross-Chain Identity). Admission on attached
