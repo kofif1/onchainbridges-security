@@ -62,6 +62,22 @@ scanners; expected, not a finding.
 > bytecode on each chain, so the [3-analyzer source review](audits/SECURITY-REVIEW-2026-06-17.md)
 > (0 Critical/High/Medium) covers all of them. The per-chain rows record on-chain *verification*.
 
+## Plume Testnet (98867) - Phase-1 policies - Blockscout - COMPLETE (2026-07-14)
+
+Propagation of the three Sepolia-audited Phase-1 policies (identical source, main `2fcd6e3` containing
+`78cba7a`; per the standing rule the source audits cover all EVM chains - these rows record on-chain
+verification). All six Blockscout-verified (3 impls fresh, 3 ERC1967 proxies bytecode-matched, constructor
+args cross-checked against archived run-latest.json at `broadcast-archive/plume-98867/`). Gate-confirmed
+live reads: owner `0xFc99...`, correct typeAndVersion, no-op knobs. Same by-design caveats as Sepolia rows.
+
+| Policy | Proxy | Impl | Audit |
+|---|---|---|---|
+| MaxBalancePolicy | `0x16cb43d4eFF1727080352f2a14A68c5cc22A13a1` | `0xF7431a563de33840d0e350779765FdDBc38aE4D4` | [Sepolia report](audits/MAXBALANCEPOLICY-AUDIT-2026-07-12.md) |
+| SupplyLimitPolicy | `0x7967517F323b2294e19A0A92fc2fAE7522617270` | `0x22C799187e8166953aA0748ea846DcBE9d7667c1` | [Sepolia report](audits/SUPPLYLIMITPOLICY-AUDIT-2026-07-14.md) |
+| TransferRestrictPolicy | `0xd761C6ef8f1c29CA2cC4a64bAc84149c13204fc8` | `0x5E5256A9bAc9682de28db49F85B4891c82185234` | [Sepolia report](audits/TRANSFERRESTRICTPOLICY-AUDIT-2026-07-14.md) |
+
+Attach: cleared 2026-07-14; pending Ilan's 6 casts, then CCID re-read (Plume validator `0x65Ddd598` at index 2 must hold).
+
 ## Polygon Amoy (80002) - Etherscan V2 - COMPLETE
 
 Explorer: `https://amoy.polygonscan.com/address/<addr>#code`. All 14 canonical contracts verified:
