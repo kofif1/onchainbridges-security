@@ -76,7 +76,12 @@ live reads: owner `0xFc99...`, correct typeAndVersion, no-op knobs. Same by-desi
 | SupplyLimitPolicy | `0x7967517F323b2294e19A0A92fc2fAE7522617270` | `0x22C799187e8166953aA0748ea846DcBE9d7667c1` | [Sepolia report](audits/SUPPLYLIMITPOLICY-AUDIT-2026-07-14.md) |
 | TransferRestrictPolicy | `0xd761C6ef8f1c29CA2cC4a64bAc84149c13204fc8` | `0x5E5256A9bAc9682de28db49F85B4891c82185234` | [Sepolia report](audits/TRANSFERRESTRICTPOLICY-AUDIT-2026-07-14.md) |
 
-Attach: cleared 2026-07-14; pending Ilan's 6 casts, then CCID re-read (Plume validator `0x65Ddd598` at index 2 must hold).
+**ATTACHED on Plume MBT 2026-07-16** (Ilan's 6 casts, all status 1; validator `0x65Ddd598` holds at index 2):
+- MaxBalance `0x16cb43d4` at index 3: transfer `0x0af3ecbac27da754cae0c1d517d076ea0e125f6c4b2254bc1e83044aa48242ee` (block 23805629), transferFrom `0x3d525ec6738fa75ab19856266759ccfb5526d43377f3a4cc04f715dc0be7cdab` (23805630), mint `0x6478bbdef4cc63e4eaacc69a4a2d485c02fee3e21f0ce7fed90e9eda304e1487` (23805631).
+- SupplyLimit `0x7967517F` at index 4: mint `0x2226bda2f1907eb2d1efa6dc7d3427c0c5f71e39562e5cdd52fcb8112b488bb9` (23805634).
+- TransferRestrict `0xd761C6ef` at index 4: transfer `0xb1ee95d5dc2aefae9744ea8e1041c35fac6e2aa50ff2b11596f34f8eaba6d44d` (23805635), transferFrom `0xaed1319339fe97b7900dca185158f86afb0a42f90001d0d0c6dc27b4e9d56f1b` (23805636).
+
+Final live chains: transfer/transferFrom `[Allow, Pause, Validator@2, MaxBalance@3, TransferRestrict@4]`; mint `[Allow, Pause, Validator@2, MaxBalance@3, SupplyLimit@4]`. Behavioral proof clean (allowlisted passes, non-allowlisted rejects on AllowPolicy, pool mint clean); CCID independent re-read pinged. Plume = second chain live after Sepolia; Amoy + Minato next on Ilan's window, same pipeline.
 
 ## Polygon Amoy (80002) - Etherscan V2 - COMPLETE
 
