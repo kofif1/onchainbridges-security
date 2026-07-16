@@ -94,6 +94,23 @@ LockVault `0x5D273AAE0547FD33c0C5247487a160cd26f38FE4`, YieldIssuer `0x62BD210F9
 YieldToken `0xC4dE838dF59AEB7a9Ad099A34EE6F3E1B19D1aeC`, YTMarket `0xa701147b7C1a511790BE503675Df1F8B09caBAa9`,
 LendingVault `0xb4908accabcba9ce56ef0324b9695a88e3dd2534`, TLPTFaucet `0x6c61658cfe0e5794f739782433a8011a6107a570`.
 
+### Phase-1 policies (Amoy) - Etherscan V2 - COMPLETE (2026-07-16)
+
+The three Sepolia-audited Phase-1 policies propagated to Amoy (identical source, main `2fcd6e3`; per the
+standing rule the Sepolia source audits cover all EVM chains, these rows record on-chain verification).
+All 6 Etherscan-V2-verified (viaIR / `FOUNDRY_PROFILE=ccid`; 3 impls no-args + 3 ERC1967 proxies, proxy
+constructor args = `(impl, initCall)` with engine slot `0xfefA774d`, cross-checked against archived
+receipts at `broadcast-archive/amoy-80002/`). Single-deploy-driver, addresses matched predictions,
+live reads verified (typeAndVersion, no-op knobs, owner `0xFc99`, impl slots). Same by-design caveats as Sepolia.
+
+| Policy | Proxy | Impl | Audit |
+|---|---|---|---|
+| MaxBalancePolicy | `0x92152fc12141257f9CB59E4b48BD5d03d39FFC17` | `0x0AF4dA1E7D7223636f68b0Fece064a08c823a0b2` | [Sepolia report](audits/MAXBALANCEPOLICY-AUDIT-2026-07-12.md) |
+| SupplyLimitPolicy | `0xd9425Ee38168071378a567E8969DDD8Ad31935eC` | `0x241a31e68E994036B027eBa11FF4A2F9Bf2c305C` | [Sepolia report](audits/SUPPLYLIMITPOLICY-AUDIT-2026-07-14.md) |
+| TransferRestrictPolicy | `0x68e7A9514953750b4bc4ED1b715fC8a8759AB611` | `0xC5DD43513D013B422FA522cf2f6E5B57ec038F69` | [Sepolia report](audits/TRANSFERRESTRICTPOLICY-AUDIT-2026-07-14.md) |
+
+Attach: gate cleared 2026-07-16; pending Ilan's 6 casts, then CCID re-read (Amoy validator `0xCAEe7962` at index 2 must hold).
+
 ## Sonic Testnet (14601) - Etherscan V2 - COMPLETE
 
 Explorer: `https://testnet.sonicscan.org/address/<addr>#code`. All 8 canonical contracts verified:
