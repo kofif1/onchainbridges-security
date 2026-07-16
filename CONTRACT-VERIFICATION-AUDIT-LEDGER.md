@@ -367,6 +367,107 @@ All 10 contracts **source-verified** (Etherscan V2: Sepolia/Amoy; Blockscout: Pl
 > and both Plume badge addresses also collide with backfill-cohort wallet addresses on other chains.
 > Same deployer+nonce coincidence class as the Base/Plume/Sonic collisions noted above.
 
+## Multi-Asset Signing Session 1 (AVR + TGLP) - Sepolia + Amoy - Etherscan V2 - COMPLETE (2026-07-16)
+
+Signing Session 1 of the multi-asset marketplace deployed two RWA assets, **AVR** (Aurum Vault Reserve)
+and **TGLP** (Thames Gateway Logistics Park), across **Sepolia (hub)** and **Polygon Amoy**. Each asset
+has its own PolicyEngine + LinkedComplianceCheck (linked to the per-chain master AllowPolicy allowlist),
+a BurnMintTokenPool for CCIP burn/mint, and mint/transfer extractors. Per the every-asset-PoR catalog rule,
+each asset carries a **hub** Chainlink Proof-of-Reserve feed (MockV3Aggregator on testnet; a real Chainlink
+PoR feed at mainnet). Deployed by the Multi-Asset Marketplace channel; verify/audit gate by Session 8.
+Owner/issuer-admin = `0xFc9933C8896715c1f3ADF9b8250ac051a95Fd33c` (deployer; Safe migration under `policy_mainnet_secure_signing_gate`).
+
+**Source audit:** [MULTIASSET-SS1-AUDIT-2026-07-16](audits/MULTIASSET-SS1-AUDIT-2026-07-16.md), Slither 0.11.4
+on the two OB-authored contracts (LinkedComplianceCheck, RWATokenCCT): **0 Critical/High/Medium in OB code**
+(the 2 Medium reentrancy reports are Chainlink ACE library `PolicyProtected`; the 1 OB Medium `unused-return`
+on the PoR read is non-exploitable given the staleness + negative-reserve guards). Chainlink ACE library
+contracts (PolicyEngine, AllowPolicy, extractors) are vendored under the BUSL additional-use grant; CCIP
+BurnMintTokenPool + MockV3Aggregator are Chainlink source. Constructor args taken from on-chain creation input, not guessed.
+
+> **PoR labeling:** the MockV3Aggregator rows are reserve FEEDS, not tokens. In public docs / dApp they appear
+> under the token they back (e.g. "AVR Reserve Feed, Chainlink Proof of Reserve (testnet mock)"), never as a standalone asset.
+
+> **Operational risk (flagged, not a contract finding):** AVR + TGLP PoR feeds have `maxStaleness = 24h`. The
+> por-refresh keeper currently refreshes only the MBT feed; it must be extended to the AVR (`0x77f09Bc9...`)
+> and TGLP (`0x27C931...`) feeds, or hub mints/mint-backs revert with `StaleReserveData` after 24h.
+
+### Sepolia (11155111)
+
+**Shared master allowlist**
+
+| Contract | Address | Verified |
+|---|---|---|
+| AllowPolicy (master impl) | `0x20BCACc849092A575738693830815b04d3e07E3C` | [yes](https://sepolia.etherscan.io/address/0x20BCACc849092A575738693830815b04d3e07E3C#code) |
+| ERC1967 proxy | `0xd276471610692F3B5BECF433C867900E0291FD86` | [yes](https://sepolia.etherscan.io/address/0xd276471610692F3B5BECF433C867900E0291FD86#code) |
+
+**AVR - Aurum Vault Reserve (token, pool, engine, linked-compliance, extractors, PoR feed)**
+
+| Contract | Address | Verified |
+|---|---|---|
+| PolicyEngine (engine impl) | `0x305A50edADE43b4F07cAe29D948407ba39C4C549` | [yes](https://sepolia.etherscan.io/address/0x305A50edADE43b4F07cAe29D948407ba39C4C549#code) |
+| ERC1967 proxy | `0x6B603E425C95f6a91daAA0f6cF079b4E235a702f` | [yes](https://sepolia.etherscan.io/address/0x6B603E425C95f6a91daAA0f6cF079b4E235a702f#code) |
+| LinkedComplianceCheck (impl) | `0xE6F5026B933875Da5Ebb258ec4446Ffa2D2e340F` | [yes](https://sepolia.etherscan.io/address/0xE6F5026B933875Da5Ebb258ec4446Ffa2D2e340F#code) |
+| ERC1967 proxy | `0xB37576b86201fe92C23Df6E1dc0EDD6c9aE15140` | [yes](https://sepolia.etherscan.io/address/0xB37576b86201fe92C23Df6E1dc0EDD6c9aE15140#code) |
+| ERC20TransferExtractor | `0xebA1e8385323fce20377A77d80E3284fB67B63e5` | [yes](https://sepolia.etherscan.io/address/0xebA1e8385323fce20377A77d80E3284fB67B63e5#code) |
+| ERC20MintExtractor | `0xAD335fd374139Bef8c4384A798857A5E762400F7` | [yes](https://sepolia.etherscan.io/address/0xAD335fd374139Bef8c4384A798857A5E762400F7#code) |
+| MockV3Aggregator (PoR reserve feed) | `0x77f09Bc9Bd4B9a2FFeF802dbae1F9Af724A333b8` | [yes](https://sepolia.etherscan.io/address/0x77f09Bc9Bd4B9a2FFeF802dbae1F9Af724A333b8#code) |
+| RWATokenCCT (token) | `0x8CaDD1Dd8841FC8dC88f7f27dd0a12F2ABb5Ac2D` | [yes](https://sepolia.etherscan.io/address/0x8CaDD1Dd8841FC8dC88f7f27dd0a12F2ABb5Ac2D#code) |
+| BurnMintTokenPool | `0x6ECD13c09a59F198aE51D2B159a7F8B082f47d49` | [yes](https://sepolia.etherscan.io/address/0x6ECD13c09a59F198aE51D2B159a7F8B082f47d49#code) |
+
+**TGLP - Thames Gateway Logistics Park (token, pool, engine, linked-compliance, extractors)**
+
+| Contract | Address | Verified |
+|---|---|---|
+| PolicyEngine (engine impl) | `0xFC52536Cd234Eb2F940DdE4972083D52D47eaAF4` | [yes](https://sepolia.etherscan.io/address/0xFC52536Cd234Eb2F940DdE4972083D52D47eaAF4#code) |
+| ERC1967 proxy | `0xB5E576E407a8b4d9311357274Bc7fc1b712e47D2` | [yes](https://sepolia.etherscan.io/address/0xB5E576E407a8b4d9311357274Bc7fc1b712e47D2#code) |
+| LinkedComplianceCheck (impl) | `0xC368191502DBE71d9a1575e62eB0e9C24B040405` | [yes](https://sepolia.etherscan.io/address/0xC368191502DBE71d9a1575e62eB0e9C24B040405#code) |
+| ERC1967 proxy | `0x5e348Ac40b42aB28FfD131E5d52e88173c5431F9` | [yes](https://sepolia.etherscan.io/address/0x5e348Ac40b42aB28FfD131E5d52e88173c5431F9#code) |
+| ERC20TransferExtractor | `0xF3e0d152feD7347806A90e49d5F06C8B9085c9Bc` | [yes](https://sepolia.etherscan.io/address/0xF3e0d152feD7347806A90e49d5F06C8B9085c9Bc#code) |
+| ERC20MintExtractor | `0x832f044AbDc18b0Af6EfaBdB88869Cb2a45f7Eb3` | [yes](https://sepolia.etherscan.io/address/0x832f044AbDc18b0Af6EfaBdB88869Cb2a45f7Eb3#code) |
+| RWATokenCCT (token) | `0xa2951ee0A94aA6a37646B3112561f1b4eCd22e36` | [yes](https://sepolia.etherscan.io/address/0xa2951ee0A94aA6a37646B3112561f1b4eCd22e36#code) |
+| BurnMintTokenPool | `0x0B3a9dBF5B10520775ed3b8d3F38c2B3754A0d42` | [yes](https://sepolia.etherscan.io/address/0x0B3a9dBF5B10520775ed3b8d3F38c2B3754A0d42#code) |
+
+**TGLP hub reserve feed (retrofit, 2026-07-16):**
+
+| Contract | Address | Verified |
+|---|---|---|
+| MockV3Aggregator (TGLP PoR reserve feed) | `0x27C931499bDcdF0C81F5a853358BC99216Bf75C9` | [yes](https://sepolia.etherscan.io/address/0x27C931499bDcdF0C81F5a853358BC99216Bf75C9#code) |
+
+### Polygon Amoy (80002)
+
+**Shared master allowlist**
+
+| Contract | Address | Verified |
+|---|---|---|
+| AllowPolicy (master impl) | `0x8BC2987abf06E5CE6fb4a4B170FBd1f2b5dB6108` | [yes](https://amoy.polygonscan.com/address/0x8BC2987abf06E5CE6fb4a4B170FBd1f2b5dB6108#code) |
+| ERC1967 proxy | `0x7A6bd37D4367dc0F02cEd912b1070f877000E7be` | [yes](https://amoy.polygonscan.com/address/0x7A6bd37D4367dc0F02cEd912b1070f877000E7be#code) |
+
+**AVR - Aurum Vault Reserve (token, pool, engine, linked-compliance, extractors; no PoR, hub-only)**
+
+| Contract | Address | Verified |
+|---|---|---|
+| PolicyEngine (engine impl) | `0x6E0a14Ef8C684a6f1c3220626DCFd32DFb25D540` | [yes](https://amoy.polygonscan.com/address/0x6E0a14Ef8C684a6f1c3220626DCFd32DFb25D540#code) |
+| ERC1967 proxy | `0xa1b8C77E085f9Ad7623aC7FBa7335D4b29500E00` | [yes](https://amoy.polygonscan.com/address/0xa1b8C77E085f9Ad7623aC7FBa7335D4b29500E00#code) |
+| LinkedComplianceCheck (impl) | `0x9902D67Ac10a065e43Da17Bed31D3b99eBD1887F` | [yes](https://amoy.polygonscan.com/address/0x9902D67Ac10a065e43Da17Bed31D3b99eBD1887F#code) |
+| ERC1967 proxy | `0xAC30A1Dc1F39d0cF3758baEa893356A89dAD5847` | [yes](https://amoy.polygonscan.com/address/0xAC30A1Dc1F39d0cF3758baEa893356A89dAD5847#code) |
+| ERC20TransferExtractor | `0x7650203244AB71072798b2a922E63e6159a8dF10` | [yes](https://amoy.polygonscan.com/address/0x7650203244AB71072798b2a922E63e6159a8dF10#code) |
+| ERC20MintExtractor | `0x92B8263ead8712f2962D84a7319acD4C7D01Bf35` | [yes](https://amoy.polygonscan.com/address/0x92B8263ead8712f2962D84a7319acD4C7D01Bf35#code) |
+| RWATokenCCT (token) | `0x23FFAE0C81d1FeDFE96F7C23dd79132EBD38Cfa6` | [yes](https://amoy.polygonscan.com/address/0x23FFAE0C81d1FeDFE96F7C23dd79132EBD38Cfa6#code) |
+| BurnMintTokenPool | `0x732C0D5792F0e9194BEa09EC73F2d8E84dF17fF7` | [yes](https://amoy.polygonscan.com/address/0x732C0D5792F0e9194BEa09EC73F2d8E84dF17fF7#code) |
+
+**TGLP - Thames Gateway Logistics Park (token, pool, engine, linked-compliance, extractors; no PoR, hub-only)**
+
+| Contract | Address | Verified |
+|---|---|---|
+| PolicyEngine (engine impl) | `0x000dF9158FAeB7F1Edc7f0957C68BfA34d5e7F76` | [yes](https://amoy.polygonscan.com/address/0x000dF9158FAeB7F1Edc7f0957C68BfA34d5e7F76#code) |
+| ERC1967 proxy | `0xbebbA83b8623aAfB9Ec802304B4ED0Bff261BB16` | [yes](https://amoy.polygonscan.com/address/0xbebbA83b8623aAfB9Ec802304B4ED0Bff261BB16#code) |
+| LinkedComplianceCheck (impl) | `0x5e353a7094F2f2C57EA4e74652e976cd2a313039` | [yes](https://amoy.polygonscan.com/address/0x5e353a7094F2f2C57EA4e74652e976cd2a313039#code) |
+| ERC1967 proxy | `0xca32f347A3A474349A15e30584440c97966d3b44` | [yes](https://amoy.polygonscan.com/address/0xca32f347A3A474349A15e30584440c97966d3b44#code) |
+| ERC20TransferExtractor | `0x88c6B3C9744C7Fd33338ba5876CeA4A96Baa601e` | [yes](https://amoy.polygonscan.com/address/0x88c6B3C9744C7Fd33338ba5876CeA4A96Baa601e#code) |
+| ERC20MintExtractor | `0xF7a66681a995bF4fCBAb93f47dfd52d846c2367B` | [yes](https://amoy.polygonscan.com/address/0xF7a66681a995bF4fCBAb93f47dfd52d846c2367B#code) |
+| RWATokenCCT (token) | `0xeAE7190C10Aad2c677a575319A6511A5047A7550` | [yes](https://amoy.polygonscan.com/address/0xeAE7190C10Aad2c677a575319A6511A5047A7550#code) |
+| BurnMintTokenPool | `0x4b8d147f9b7985D338E53eC42A2b0571e2C326D3` | [yes](https://amoy.polygonscan.com/address/0x4b8d147f9b7985D338E53eC42A2b0571e2C326D3#code) |
+
 ## Not live (documented for completeness)
 
 - **Base Sepolia (84532):** NOT a supported network (`SUPPORTED_CHAINS` excludes it). Early test
@@ -377,6 +478,6 @@ All 10 contracts **source-verified** (Etherscan V2: Sepolia/Amoy; Blockscout: Pl
 its own verified section above.)
 
 ---
-_Last updated 2026-07-04 (badge SBT sitting) by RWA Bridge session 6 (coordinator). All live-network canonical protocol contracts
+_Last updated 2026-07-16 (Multi-Asset Signing Session 1: AVR + TGLP, 38 contracts Sepolia+Amoy, Etherscan V2 verified + Slither audited, 0 Crit/High/Med in OB code) by RWA Bridge Session 8 (coordinator). All live-network canonical protocol contracts
 verified (Astar Shibuya 5/5); source-based audit (3 analyzers, 0 Crit/High/Med) covers all EVM
 chains + Solana._
