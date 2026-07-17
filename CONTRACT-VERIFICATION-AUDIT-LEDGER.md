@@ -109,7 +109,12 @@ live reads verified (typeAndVersion, no-op knobs, owner `0xFc99`, impl slots). S
 | SupplyLimitPolicy | `0xd9425Ee38168071378a567E8969DDD8Ad31935eC` | `0x241a31e68E994036B027eBa11FF4A2F9Bf2c305C` | [Sepolia report](audits/SUPPLYLIMITPOLICY-AUDIT-2026-07-14.md) |
 | TransferRestrictPolicy | `0x68e7A9514953750b4bc4ED1b715fC8a8759AB611` | `0xC5DD43513D013B422FA522cf2f6E5B57ec038F69` | [Sepolia report](audits/TRANSFERRESTRICTPOLICY-AUDIT-2026-07-14.md) |
 
-Attach: gate cleared 2026-07-16; pending Ilan's 6 casts, then CCID re-read (Amoy validator `0xCAEe7962` at index 2 must hold).
+**ATTACHED on Amoy MBT 2026-07-16** (Ilan's 6 casts, all status 1; validator `0xCAEe7962` holds at index 2):
+- MaxBalance at index 3: transfer `0x3526fa2b54fd97f33ff150e3051c649d71731e3f2452cd708a922ae56e02b39e` (block 42417186), transferFrom `0xedc576d2a5a4dcd6a49af6a12db2d0dfd038cf7a252d49ecb9713b822fe39475` (42417189), mint `0x10777761779a66a89cfda6938299a2d513b0924ca0b27549afb072f0ada4cd96` (42417191).
+- SupplyLimit at index 4: mint `0x376cb74d526414a0826bacb9d5aeacf2d3b3b2044380e731a1d457401f544c74` (42417192).
+- TransferRestrict at index 4: transfer `0xa2f778a49a55a8883decd862b12069205d60f0c283d253294fc671183feb1454` (42417193), transferFrom `0xcde7a1c4e0b7055de12497180930c50fc6281c389bb1a5a11088cfe7ee99fda0` (42417196).
+
+Final live chains: transfer/transferFrom `[Allow, Pause, Validator@2, MaxBalance@3, TransferRestrict@4]`; mint `[Allow, Pause, Validator@2, MaxBalance@3, SupplyLimit@4]`. Behavioral proof clean; CCID re-read pinged. Amoy = third chain live (after Sepolia + Plume).
 
 ## Sonic Testnet (14601) - Etherscan V2 - COMPLETE
 
