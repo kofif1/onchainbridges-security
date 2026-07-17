@@ -133,7 +133,12 @@ chain-qualify everything.
 | SupplyLimitPolicy | `0x7c36D0605a53D006792444F4346F65d2f5600285` | `0xAa78852A39204B4C761cFaC12B5c930357D541c9` | [Sepolia report](audits/SUPPLYLIMITPOLICY-AUDIT-2026-07-14.md) |
 | TransferRestrictPolicy | `0x9D7770951589fd40aC2816AE60172063aE0EeFD2` | `0x91AaC905d4946e18311e4Eea267B01830e451437` | [Sepolia report](audits/TRANSFERRESTRICTPOLICY-AUDIT-2026-07-14.md) |
 
-Attach: gate cleared 2026-07-16; pending Token Controls staging + Ilan's 6 casts, then CCID re-read (Minato validator at index 2 must hold). On attach, Minato = fourth EVM chain live -> full EVM Phase-1 propagation complete (Sepolia + Plume + Amoy + Minato; Shibuya deferred on Astar, Base pending going-live).
+**ATTACHED on Minato MBT 2026-07-16** (Ilan's 6 casts, all status 1; validator holds at index 2, uniform shape vs the other three chains):
+- MaxBalance at index 3: transfer `0x0524f238638fa91c556a1b9af557f90e37a32c5ce7d2d37724ab69bc300a225a` (block 30555404), transferFrom `0xbb0c0edea2c08e0946028682fefebf219654d7f8704e915856d5efd608692ab9` (30555406), mint `0x77e4ff0e22fd7ac499f4854c1ef7923342265049ade134bbe95257cfdb97047e` (30555408).
+- SupplyLimit at index 4: mint `0x8fc9350d6519b1d88185642158e0a1494cc663c9eb65e85aae33cb358edeb143` (30555409).
+- TransferRestrict at index 4: transfer `0x5dc18e20af69cbf22ed1e16d80755cde28b9a7330238091050c161dd27592f48` (30555411), transferFrom `0xada96f8b96e959cfe748e2c91d251604d573c9d3ddb6128a71124494e9876bcc` (30555413).
+
+Behavioral proof clean; CCID pinged for the final all-chains sweep. **Minato = fourth EVM chain live. FULL EVM PHASE-1 PROPAGATION COMPLETE: 4 chains (Sepolia + Plume + Amoy + Minato) x 3 policies, all deployed, gated (verified + audited), attached, and enforcing.** Shibuya deferred on Astar recovery; Base pending its going-live.
 
 ## Sonic Testnet (14601) - Etherscan V2 - COMPLETE
 
