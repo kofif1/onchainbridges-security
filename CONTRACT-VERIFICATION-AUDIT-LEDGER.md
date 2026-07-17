@@ -116,6 +116,25 @@ live reads verified (typeAndVersion, no-op knobs, owner `0xFc99`, impl slots). S
 
 Final live chains: transfer/transferFrom `[Allow, Pause, Validator@2, MaxBalance@3, TransferRestrict@4]`; mint `[Allow, Pause, Validator@2, MaxBalance@3, SupplyLimit@4]`. Behavioral proof clean; CCID re-read pinged. Amoy = third chain live (after Sepolia + Plume).
 
+## Soneium Minato (1946) - Phase-1 policies - Blockscout - COMPLETE (2026-07-16)
+
+The three Sepolia-audited Phase-1 policies propagated to Minato (identical source, main `2fcd6e3`; the
+Sepolia source audits cover all EVM chains per the standing rule, these rows record on-chain verification).
+All 6 Blockscout-verified (`soneium-minato.blockscout.com`, viaIR / `FOUNDRY_PROFILE=ccid`; 3 impls no-args +
+3 ERC1967 proxies, proxy constructor args = `(impl, initCall)` with engine slot `0x5d273aae`, receipts at
+`broadcast-archive/minato-1946/`). Single-deploy-driver, addresses matched predictions, live reads verified
+(typeAndVersion, no-op knobs, owner `0xFc99`, impl slots). Same by-design caveats as Sepolia. Deterministic-collision
+note: Minato MaxBalance impl/proxy addresses collide with Shibuya YTMarket/Astarium-vault addresses on other chains,
+chain-qualify everything.
+
+| Policy | Proxy | Impl | Audit |
+|---|---|---|---|
+| MaxBalancePolicy | `0x3F1d5141391F5EDe23A84EbdDD2abB3e56Dd9519` | `0xFf69A2c111759777693e348727BD157db4Fb8AB2` | [Sepolia report](audits/MAXBALANCEPOLICY-AUDIT-2026-07-12.md) |
+| SupplyLimitPolicy | `0x7c36D0605a53D006792444F4346F65d2f5600285` | `0xAa78852A39204B4C761cFaC12B5c930357D541c9` | [Sepolia report](audits/SUPPLYLIMITPOLICY-AUDIT-2026-07-14.md) |
+| TransferRestrictPolicy | `0x9D7770951589fd40aC2816AE60172063aE0EeFD2` | `0x91AaC905d4946e18311e4Eea267B01830e451437` | [Sepolia report](audits/TRANSFERRESTRICTPOLICY-AUDIT-2026-07-14.md) |
+
+Attach: gate cleared 2026-07-16; pending Token Controls staging + Ilan's 6 casts, then CCID re-read (Minato validator at index 2 must hold). On attach, Minato = fourth EVM chain live -> full EVM Phase-1 propagation complete (Sepolia + Plume + Amoy + Minato; Shibuya deferred on Astar, Base pending going-live).
+
 ## Sonic Testnet (14601) - Etherscan V2 - COMPLETE
 
 Explorer: `https://testnet.sonicscan.org/address/<addr>#code`. All 8 canonical contracts verified:
