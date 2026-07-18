@@ -519,6 +519,39 @@ BurnMintTokenPool + MockV3Aggregator are Chainlink source. Constructor args take
 | RWATokenCCT (token) | `0xeAE7190C10Aad2c677a575319A6511A5047A7550` | [yes](https://amoy.polygonscan.com/address/0xeAE7190C10Aad2c677a575319A6511A5047A7550#code) |
 | BurnMintTokenPool | `0x4b8d147f9b7985D338E53eC42A2b0571e2C326D3` | [yes](https://amoy.polygonscan.com/address/0x4b8d147f9b7985D338E53eC42A2b0571e2C326D3#code) |
 
+## Base Sepolia (84532) - Phase-0 stack - Etherscan V2 - COMPLETE (2026-07-17)
+
+The MBT + full ACE stack deployed for the (pending) Base go-live. All 11 Etherscan-V2-verified.
+**Compiler: solc 0.8.24, optimizer 200, `via_ir=FALSE`** - the Base stack deployed at repo HEAD
+`cad3021` (2026-06-28) whose default profile had via_ir off; current main flipped the default to
+via_ir=true (post-#134), which changes ONLY the complex RWATokenCCT/pool bytecode (small ACE contracts
+are byte-identical either way). RWATokenCCT source unchanged since 0c92652; libs since 42ecbbf.
+Audit basis: RWATokenCCT + ERC20MintExtractor covered by the Multi-Asset SS1 Slither audit (same source);
+PolicyEngine/AllowPolicy/PausePolicy/TransferExtractor = vendored Chainlink ACE (BUSL grant); pool = CCIP; feed = Chainlink mock.
+
+> **PROVENANCE-GAP / mainnet-readiness lesson (Lane-Wiring, 2026-07-17):** the live Base deploy's broadcast is
+> NOT committed (the 84532 run-latest.json is an unrelated April deploy; the 06-28 artifact is a dry-run only),
+> so there is no committed deploy SHA - reconstructed as `cad3021` from source+lib+metadata. Deploying on the
+> default profile then later flipping that profile's `via_ir` breaks reproducibility of already-live contracts.
+> For mainnet: pin the exact deploy profile + commit the broadcast.
+
+| Contract | Address | Verified |
+|---|---|---|
+| RWATokenCCT (MBT) | `0x2aedDb48a3b6028244ed31C0fdDEB2B72Fce3bE1` | [yes](https://sepolia.basescan.org/address/0x2aedDb48a3b6028244ed31C0fdDEB2B72Fce3bE1#code) |
+| BurnMintTokenPool | `0x49f1aa7C252183E79D4944c54698a335Ed65C150` | [yes](https://sepolia.basescan.org/address/0x49f1aa7C252183E79D4944c54698a335Ed65C150#code) |
+| PolicyEngine (impl) | `0x52FBB6bD6522eF2EcF7c05b6be42F460ec7518bf` | [yes](https://sepolia.basescan.org/address/0x52FBB6bD6522eF2EcF7c05b6be42F460ec7518bf#code) |
+| PolicyEngine (proxy) | `0xa1a58d40490CeB9a36bA2c8e0Bf457aba591452c` | [yes](https://sepolia.basescan.org/address/0xa1a58d40490CeB9a36bA2c8e0Bf457aba591452c#code) |
+| AllowPolicy (impl) | `0x752145eE04594EA218473C79F0dAFefAD4a1765C` | [yes](https://sepolia.basescan.org/address/0x752145eE04594EA218473C79F0dAFefAD4a1765C#code) |
+| AllowPolicy (proxy) | `0x2b7B6f835D9C416e84ce85F982D37b5a78fbe6D8` | [yes](https://sepolia.basescan.org/address/0x2b7B6f835D9C416e84ce85F982D37b5a78fbe6D8#code) |
+| PausePolicy (impl) | `0xfB1aA3d4A41DF3d858CCde72B94acCc0F2AeD9b1` | [yes](https://sepolia.basescan.org/address/0xfB1aA3d4A41DF3d858CCde72B94acCc0F2AeD9b1#code) |
+| PausePolicy (proxy) | `0x55d0Ed9c1232646ECeabAaA95bc74892B6A2DEEC` | [yes](https://sepolia.basescan.org/address/0x55d0Ed9c1232646ECeabAaA95bc74892B6A2DEEC#code) |
+| ERC20TransferExtractor | `0xa6Bd2AD27Ffa124237411c0877D48b5496BaF6d7` | [yes](https://sepolia.basescan.org/address/0xa6Bd2AD27Ffa124237411c0877D48b5496BaF6d7#code) |
+| ERC20MintExtractor | `0xAB062D019021134D0dcf4b6bA9FBb9FddB07Cd38` | [yes](https://sepolia.basescan.org/address/0xAB062D019021134D0dcf4b6bA9FBb9FddB07Cd38#code) |
+| MockV3Aggregator (PoR feed) | `0x3520f45AfBbEc76484bD146Cb260C03D0Faec5F5` | [yes](https://sepolia.basescan.org/address/0x3520f45AfBbEc76484bD146Cb260C03D0Faec5F5#code) |
+
+Status: verified + audited (this section). Base is NOT yet in the dApp - pending the PoR keeper running,
+the config/LIVE_DIRECTED PR, and pre-demo-check green. When those land, Base flips live.
+
 ## Not live (documented for completeness)
 
 - **Base Sepolia (84532):** NOT a supported network (`SUPPORTED_CHAINS` excludes it). Early test
