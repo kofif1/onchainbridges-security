@@ -42,7 +42,7 @@ authorship; clean-room vs any T-REX / ERC-3643 source per `policy_no_copying_cop
 ## On-chain wiring (verified, Sepolia)
 - `vault.token()` = GGBR `0x9902D67Ac10a065e43Da17Bed31D3b99eBD1887F`
 - `vault.policyEngine()` = ACE PolicyEngine `0xd4b9F980f09f0871C753a7d558B5c500DA1617a3`
-- `vault.lockNonce()` = 0 (fresh); return caps = uint256.max (dormant)
+- `vault.lockNonce()` = 0 (fresh) **at time of audit, 2026-07-19. SNAPSHOT: reads 1 as of 2026-07-22 after one legitimate outbound lock; the outbound leg is in normal use. Neither this nor `isAttested` affects the findings or the two return-leg preconditions, which were re-confirmed on 2026-07-22 (`vault.policyEngine()` still `0xd4b9F980...`)**; return caps = uint256.max (dormant)
 - `extractor.LOCK_SELECTOR` = `0xf643509c` = `bytes4(keccak256("lock(uint256,string)"))`
 - `extractor.PARAM_DEPOSITOR` = `keccak256("depositor")` = `0x5bf3f581aca7878c78a6920df3b2a5e73280e8f24fe596cd1cf839a75d3d786d`
 - Deployed by `0xFc99...Fd33c`, block 11309903 (extractor tx `0xbefff00e...`, vault tx `0xdaae440c...`)

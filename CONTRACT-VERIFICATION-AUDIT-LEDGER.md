@@ -9,6 +9,16 @@ Columns: contract, chain, address, explorer link (verified source), AI audit (to
 report URL / date), notes. "by-design" = compliance control flagged as centralization by
 scanners; expected, not a finding.
 
+> ### READING CONVENTION: every on-chain STATE value here is a SNAPSHOT, not a standing claim
+> Verification facts are durable: source verified, bytecode matched, audit result, the composition of a
+> policy chain at attach. **Mutable STATE readings are true only at the date on their entry** - balances,
+> `totalSupply`, nonces, `lockNonce`, `isAttested`, `isAgent`, allowlist membership, deployer key nonces.
+> They drift through normal healthy use, and a later reader must NOT treat them as current. Where a state
+> value is load-bearing for a decision, RE-READ IT at decision time rather than citing this document.
+> This convention exists because two entries drifted within a day of publication (the Canton `lockNonce`
+> and `isAttested` rows, from a single legitimate outbound lock). The drift was harmless; publishing a
+> state claim with no snapshot marker is what makes it silently become a false claim.
+
 > **Status 2026-06-17:** ALL LIVE NETWORKS COMPLETE. Every live EVM network (Sepolia, Polygon
 > Amoy, Sonic, Soneium Minato, Plume) has its canonical protocol contracts explorer-verified, and
 > the source-based audit ([SECURITY-REVIEW-2026-06-17](audits/SECURITY-REVIEW-2026-06-17.md): 0
@@ -55,7 +65,7 @@ scanners; expected, not a finding.
 | TransferRestrictPolicy (impl) | `0xC68c3f0beeEeA72e76F4A533d2f3fd731934c3A5` | [yes](https://sepolia.etherscan.io/address/0xC68c3f0beeEeA72e76F4A533d2f3fd731934c3A5#code) | [same report](audits/TRANSFERRESTRICTPOLICY-AUDIT-2026-07-14.md) | scan this for logic; owner lockups/blocklist + block.timestamp = by-design; freezes only, cannot move funds |
 | CantonLockVault (ACE-gated) | `0xFE4a573C780DA0F895530ED609FDa7e3b833E15f` | [yes](https://sepolia.etherscan.io/address/0xFE4a573C780DA0F895530ED609FDa7e3b833E15f#code) | [manual review + on-chain behavioral proof: 0 Crit/High/Med (2026-07-19)](audits/CANTON-VAULT-AUDIT-2026-07-19.md) | Canton Phase-2 EVM-side lock vault (PR #259, main 634fb73), deployed by 0xFc99 block 11309903. `lock()` runs the ACE PolicyEngine on the depositor (via LockDepositorExtractor) BEFORE value moves. **Gate ACTIVATED 2026-07-19**: setExtractor tx `0x6d22bd80..`, addPolicy(AllowPolicy 0x7858) tx `0x4a4fd22b..`; `getPolicies(vault,0xf643509c)=[0x7858..]`. Behavioral proof: non-allowlisted `lock()` reverts "address is not on allow list", allowlisted passes to ERC20 allowance. Return leg `_processReport` forwarder-gated + dormant; caps=uint256.max + recipient NOT ACE-gated = HARD PREREQ before enabling Canton->EVM return. Supersedes ungated vault `0x92B8263e..` (live lane cuts over separately, Canton-owned) |
 | LockDepositorExtractor | `0xbEa509a63035322D3117BcdDaa5A969ab4F53203` | [yes](https://sepolia.etherscan.io/address/0xbEa509a63035322D3117BcdDaa5A969ab4F53203#code) | [same report](audits/CANTON-VAULT-AUDIT-2026-07-19.md) | ACE extractor for `CantonLockVault.lock(uint256,string)`; surfaces `payload.sender` as `keccak256("depositor")=0x5bf3f581..` so AllowPolicy checks the DEPOSITOR (not a calldata arg). LOCK_SELECTOR `0xf643509c`. Bound on engine via setExtractor 2026-07-19 (tx `0x6d22bd80..`) |
-| CantonBridgeOutbox (fresh, for gated vault) | `0x0d21fb470c8577Df126db7470c9F843cA378B360` | [yes](https://sepolia.etherscan.io/address/0x0d21fb470c8577Df126db7470c9F843cA378B360#code) | [same report](audits/CANTON-VAULT-AUDIT-2026-07-19.md) | DON-attestation outbox for the gated vault 0xFE4a (PR #259 source, identical to the prior outbox). Deployed by 0xFc99 tx `0xaa5e3e16..` block 11310194; getForwarderAddress()=0xF8344CFd, owner()=0xFc99, isAttested(1..7)=FALSE (clean nonce space). REPLACES reused outbox `0x89f38a88` for the new lane: the outbox keys attestations on raw lockNonce + reverts AlreadyAttested, and 0x89f38a88 already had nonces 1-7 attested from the OLD vault's locks, so the fresh-nonce gated vault (starts at 0) needed a clean outbox or its first-lock attestation would revert -> no mint. Nonce-keyed outbox = single-vault. |
+| CantonBridgeOutbox (fresh, for gated vault) | `0x0d21fb470c8577Df126db7470c9F843cA378B360` | [yes](https://sepolia.etherscan.io/address/0x0d21fb470c8577Df126db7470c9F843cA378B360#code) | [same report](audits/CANTON-VAULT-AUDIT-2026-07-19.md) | DON-attestation outbox for the gated vault 0xFE4a (PR #259 source, identical to the prior outbox). Deployed by 0xFc99 tx `0xaa5e3e16..` block 11310194; getForwarderAddress()=0xF8344CFd, owner()=0xFc99, isAttested(1..7)=FALSE (clean nonce space) **at deploy, 2026-07-19; SNAPSHOT: isAttested(1) is TRUE as of 2026-07-22 after one legitimate outbound lock, lockNonce now 1. Expected use, not drift in the finding**. REPLACES reused outbox `0x89f38a88` for the new lane: the outbox keys attestations on raw lockNonce + reverts AlreadyAttested, and 0x89f38a88 already had nonces 1-7 attested from the OLD vault's locks, so the fresh-nonce gated vault (starts at 0) needed a clean outbox or its first-lock attestation would revert -> no mint. Nonce-keyed outbox = single-vault. |
 
 > **Config bug surfaced:** `webapp/src/config/chains.ts` lists Sepolia TLPT as `0x8E531A05...`,
 > which has NO code on Sepolia. The live TLPT token is `0x1ceaaE761C87278acfbE33c89eC523B46FAbCcF3`
@@ -806,6 +816,71 @@ verification tooling's own output.
 > of their own and inherit the base. So the concrete check is: **is `BypassPolicy` (or any custom
 > `Allowed`-returning policy) present at a lower index?**
 >
+> ### THE COMPLEMENT: every passing transfer depends on the target default being ALLOW
+> The short-circuit rule above is only half the picture, and the other half is a live brick risk.
+> `PolicyEngine.run` calls `_checkDefaultPolicyAllowRevert(target, payload)` **AFTER the policy loop
+> completes**, not only when the chain is empty. Since NO policy in the ACE library returns `Allowed`
+> except `BypassPolicy` (see the exhaustive audit above), **every production chain runs to the end of the
+> loop and then consults the default.** If that default is REJECT the call reverts
+> `PolicyRunRejected(address(0), "no policy allowed the action and default is reject")`.
+>
+> **Consequence: `setTargetDefaultPolicyAllow(target, false)` reads like "harden this target" and would in
+> fact BRICK it.** Every transfer, mint and bridge on that target would revert even for fully admitted,
+> fully credentialed parties, because an all-`Continue` chain has nothing to satisfy the default. Worse, a
+> REJECT-ONLY verification would pass perfectly in that state: everything is rejected, including the things
+> that should be. This is the concrete reason a PERMIT-PROOF is NECESSARY rather than good practice.
+>
+> **BLAST RADIUS: on the main Sepolia engine this is ONE GLOBAL FLAG, not a per-target one.**
+> `_checkDefaultPolicyAllowRevert` uses the GLOBAL `defaultPolicyAllow` unless a target-specific override
+> was set (`targetHasDefault[target]`). Measured on engine `0xd4b9F980...` by full-range event scan:
+> **ZERO `TargetDefaultPolicyAllowSet` events ever**, and exactly ONE `DefaultPolicyAllowSet` (block
+> 10641981, at engine setup). So NO target has a per-target override and **every ACE-gated target on that
+> engine inherits the same global flag**: v1 MBT `0x044951AB`, v2 MBT `0x661d63bE`, the Canton lock vault
+> `0xFE4a573C`, and every other target attached to it. **A single `setDefaultPolicyAllow(false)` call would
+> brick all of them simultaneously**, while a reject-only test on any of them still passed.
+> This is an ADMIN_ROLE setter callable at ANY time, so a gate check proves the configuration at that
+> INSTANT only; a flip an hour later is silent and the first symptom is a user's transaction failing.
+>
+> **THEREFORE the permit-probe is promoted from a post-attach gate to a STANDING MONITOR** on every
+> ACE-gated target (proposed by the Canton channel). It is a pure `eth_call`: no gas, no state change, one
+> call, and the assertion is simply that the revert (if any) is NOT the AllowPolicy rejection. Detection
+> drops from "the next user complaint" to the poll interval. Confirmed live at the time of writing: the
+> global default is ALLOW, evidenced behaviourally by every permit-proof recorded in this document, each of
+> which would have reverted otherwise.
+>
+> **Monitor design, three points that make the difference between a monitor and a green light:**
+> 1. **Pre-check that the probe sender is still entitled** (`addressAllowed(sender)`), and report SKIP, not
+>    ALERT, if it is not. Otherwise de-allowlisting the probe wallet raises a false "engine bricked" alarm,
+>    and false alarms are how monitors get muted. It also sharpens the ALERT: the sender IS entitled and was
+>    still rejected, therefore the ENGINE changed.
+> 2. **Match the DENY SIGNATURE, not "did it revert".** A healthy probe usually DOES revert, just further
+>    downstream (e.g. `ERC20InsufficientAllowance`, meaning it cleared the gate and stopped at approval).
+>    Alerting on "reverted" would be permanently red. Match the AllowPolicy rejection specifically.
+> 3. **Pure `eth_call`** so it needs no gas, no state change and no signing, and is therefore safe to run on
+>    a tight schedule and safe to run from a channel that never signs.
+>
+> **A monitor's PASS is itself a SNAPSHOT** (per the reading convention at the top of this document), so the
+> durable artifact is NOT a green run. **It is the NEGATIVE-CONTROL result proving the detector can fire**:
+> a monitor that has only ever returned OK is indistinguishable from a monitor that CANNOT fail. The Canton
+> channel proved theirs by firing the same probe from a non-allowlisted sender, reproducing exactly the
+> rejection a bricked engine yields for an allowlisted one, and confirming the deny-matcher triggered.
+> Reusable probe: `canton-ggbr-bridge/ops/ace-permit-probe.sh` (Canton channel).
+>
+> **Scope: the per-engine floor on Sepolia is NINE probes, not one.** Each PolicyEngine instance carries its
+> OWN global flag. `0xd4b9F980...` covers v1 MBT + v2 MBT + the Canton vault, but each of the 8 multi-asset
+> catalog assets has a SEPARATE engine with an independent default. A probe on one engine says nothing about
+> another. Verified probe sender for all of them: `0xFc9933C8...`, which reads `addressAllowed = true` on
+> both the legacy allowlist `0x7858b6e6...` and the multi-asset master `0xd2764716...`, and `validate = true`
+> on the credential validator.
+>
+> **Auditability of the flag:** there is NO public getter for `defaultPolicyAllow` or
+> `targetDefaultPolicyAllow`, so the current setting CANNOT be read directly. It IS recoverable from events
+> (`DefaultPolicyAllowSet`, `TargetDefaultPolicyAllowSet`), and event enumeration is VALID here by the test
+> stated elsewhere in this ledger: the two `ADMIN_ROLE` setters are the only writers of those fields and both
+> emit. The cheap live check remains a permit-proof: if an admitted party can transact, the default is allow.
+> Confirmed behaviourally across every chain gated in this document, since each permit-proof recorded here
+> would have reverted otherwise. (Raised by the Canton channel from a live near-miss on the lock gate.)
+>
 > **Corollary for verifying an attach:** `getPolicies` proves a policy is INSTALLED, `validate()` proves it
 > DISCRIMINATES in isolation, and only an address-attributed revert proves the ENGINE consulted it. The
 > engine reverts `PolicyRunRejected(address policy, string rejectReason, Payload)` naming the REJECTING
@@ -988,6 +1063,86 @@ The ATTACH broadcast is archived in **PR #283 (OPEN at the time of writing)** as
 `0x1`. SHA-256 `d8d29fd067090fc9ad0b9f8b7cb845ca3680f13d4e92293e2363c8dfa3bc8ebb`, which this gate computed
 independently against both the archived copy and the original and found identical. Recorded as OPEN rather
 than implying durability; replace with the merge SHA when it lands.
+
+## Multi-Asset Signing Session 3: 8 catalog assets (Sepolia 11155111) - Etherscan V2 - COMPLETE (2026-07-22)
+
+Eight new catalog RWA assets: NTR (Northline Trade Receivables), SGI (Solara Grid Infrastructure),
+VCC (Verdant Carbon Credits), HRT (Harmony Music Royalties), IEL (Ironclad Equipment Leasing),
+CLW (Chateau Ledger Fine Wine), ABA (Atelier Blue-Chip Art), LLF (Lexfund Litigation Finance).
+Sepolia HUB ONLY: no spokes, no vaults, no yield stacks, no CCIP lanes yet. Deployed by Ilan
+(deployer `0xFc9933C8...`, nonce 759-909, 0.0967 ETH). Shared Sepolia master allowlist reused unchanged:
+`0xd276471610692F3B5BECF433C867900E0291FD86`.
+
+> **SCOPE CORRECTION BY THIS GATE: 56 ADDRESSES, NOT 40.** The handoff enumerated 5 contracts per asset.
+> But each asset's PolicyEngine and LinkedComplianceCheck are minimal ERC1967 PROXIES (130-byte runtime
+> that embeds the ERC1967 slot and delegatecalls), and **the compliance LOGIC lives in 16 implementation
+> contracts that were not listed**. Passing the 40 would have cleared 8 investor-facing assets whose actual
+> enforcement code was never verified. A proxy verifies cleanly on its own and says NOTHING about the logic
+> it delegates to. All 16 impls are included below and in the verification count. The 8 engine impls are
+> bytecode-identical to each other, as are the 8 LCC impls.
+
+**Verification: 56/56 explorer-verified**, each confirmed by this gate via `getsourcecode` with source
+present, NOT taken from the verification tooling's own output. Compiler for ALL 56:
+**`FOUNDRY_PROFILE=ccid` (via_ir TRUE), solc v0.8.24+commit.e11b9ed9, optimizer 200, evmVersion cancun.**
+Every one of the 56 on-chain creation inputs begins with the locally recompiled creation bytecode.
+
+> **PROFILE IS PER-DEPLOYMENT, DO NOT INHERIT IT.** The Signing Session 1 audit of the SAME contracts
+> recorded the DEFAULT profile as matching, and that prior was carried into this batch as an expectation.
+> It was WRONG here: default produced 13200 bytes against 11761 on chain for PolicyEngine, and `ccid`/viaIR
+> matched exactly. Confirm the profile by creation-bytecode prefix match every time rather than inheriting
+> it from a previous batch of the same source.
+
+**On-chain identity + wiring, verified independently by this gate:** all 8 tokens canonical EIP-55, 6668
+bytes, `symbol()` correct, `totalSupply()` matching the approved catalog exactly, and
+`balanceOf(deployer) == totalSupply` (genesis mint landed, nothing leaked). Support contracts report the
+expected `typeAndVersion` (`BurnMintTokenPool 1.5.1`, `PolicyEngine 1.0.0`, `LinkedComplianceCheck 1.0.0`;
+PoR feeds are MockV3Aggregator with none, as expected).
+
+**CROSS-WIRING: all 8 clean.** Every token points at ITS OWN PolicyEngine, every pool at ITS OWN token,
+every LinkedComplianceCheck at the shared master allowlist. This is the specific hazard of eight
+near-identical stacks deployed from one parameterised loop, and per-asset verification CANNOT detect a
+cross-asset swap by construction, however carefully it is done. Checked assets against each other, not
+each asset internally.
+
+**BOTH COMPLIANCE LEGS, on ALL 8** (the deploying channel had spot-checked 3): a transfer to a
+non-admitted address reverts with the payload naming THAT ASSET'S OWN LinkedComplianceCheck (attributed by
+policy ADDRESS, not by fact-of-revert), and a transfer to the admitted deployer succeeds. Each asset is
+genuinely gated AND not bricked.
+
+**Audit: [MULTIASSET-SS1-AUDIT-2026-07-16](audits/MULTIASSET-SS1-AUDIT-2026-07-16.md) CARRIES**, verified
+rather than assumed: `src/RWATokenCCT.sol` (last changed 2026-04-15) and `src/policies/LinkedComplianceCheck.sol`
+(2026-07-14) have ZERO commits since the audit date, and both are SHA-256 identical between `origin/main`
+and the deploying worktree. 0 Critical / 0 High / 0 Medium, one Low on LinkedComplianceCheck recorded
+by-design. Vendored: PolicyEngine = Chainlink ACE under the BUSL additional-use grant; BurnMintTokenPool =
+CCIP; MockV3Aggregator = Chainlink mock; ERC1967Proxy = OpenZeppelin.
+
+| Asset | RWATokenCCT | BurnMintTokenPool | PolicyEngine proxy / impl | LinkedComplianceCheck proxy / impl | PoR feed |
+|---|---|---|---|---|---|
+| NTR | `0x0a27077306B11432643402Cbd71E830D9DD55df3` | `0x72069897f8e26Ae0E669294Af5FbcE0C6A3C9d81` | `0x20bC79CC04cCf8625294CdB2320486b3E9C6998a` / `0x1Eb16E34bF113959DE4d3e1651d2A276C970cE4c` | `0x4EdA223AadfB99088f6bCBfaf4408980c9ABea49` / `0x77d1E619cEdD5741b44BE82bB4439263185eEB75` | `0x2De00761eBA8d188a25D2D669C22Ed72a8430Bc3` |
+| SGI | `0xA0B04fe56662B2D1E56202Bc7759964057d507B2` | `0xaB76b48143FEE071401e4a14fBcf54Fd5Ca0b74a` | `0x32A5bAcDA70Ca3e3cE5efCf1E70F19a213CB6A0F` / `0xb00C9321006Ea8371AB21Be0d5FC85E258660155` | `0x1A150563C3Ba4A5f7A258734bc3cE31Db35ECFD1` / `0x74aa7C6679Fbd46D080802B41630255A78f4F570` | `0x7Ec38A4721B1EEDC8660AC01007B3Faad2f9f09f` |
+| VCC | `0x110d738424Fc30Fca0475C980Aa9F6C3a0d6a894` | `0xbEf40eBbB611bad0602839A9B3957b52bfC9B77d` | `0x7CbdFaDB978865647286c73AD173328f05db8f33` / `0xf158E6127Bcad24d107F68202430283200c94858` | `0x51C94e5b8c7A7551024b22a6A58c4C1a1324BB93` / `0x59a6EA78805f1bb7C18339AD52A5995751e26a8A` | `0xa49aF57ed305959Ae9B37677DF7ca38F718b2F46` |
+| HRT | `0x7Cf249F2c5B4C7f7Dae0B707B06dc5B8425D632e` | `0x18dc0F131bE562bdC301e86bD76B0BD2852E1c47` | `0x029765ae7D17137D6Ce16D3f1f2F16bD408CfE61` / `0x49E56eF7d2b5EE420c4725Bc727A9D53b6aD5fa9` | `0x902427c48f991EE55E580123bDaabe09DA98eE92` / `0x4F2c4c24A910A536D231fEfCE2A74E506C53375b` | `0xABaBCb01D932CAB229E2DCd00a7C28D7846ad777` |
+| IEL | `0xA7cF769df5512c95fd75643947A5927beb8152E5` | `0x8f2f029e8da7c0A5a4b143f956316Ab86FA352F4` | `0x984e12820AeFE4c9C2E8d6A2a3c5b4E8A4D4b551` / `0xAE89C2c3f4C5eaE0872607864E51BDF7d44FA206` | `0x7E9a94fdf55b06D3C52e9de55F9C0Fc0467cb701` / `0x38D660837416314d7e43fE3351b5242a2dFD5496` | `0x7E282c120dd446C985859C1881e04C6E0a8B3E65` |
+| CLW | `0xD5a7aA7394bDAd77693F2D1e836362Af7E3C3C5e` | `0xCA8b93a34F3e572CeB132A39a4b09715505dF3b8` | `0x9719Cd08EaEFA2FC8b4c9115e92D982d997cf568` / `0xb38D6E0Ad5b714238268B7d9fA98e4D949F75D7A` | `0xD4c9381e3822F87B6F52cc54c54cA53f388Dd178` / `0x8B9480Ed42050C2c363Cc0AAFc6D295F9329d29E` | `0x52FCb785167B9b2377138268194658771D81ebe2` |
+| ABA | `0x015bc7862C8BeC7C7C8581Ac05C0b5D3dB9dCA9C` | `0xb4821e16e12bA184397424F12Efbfe81439b8b92` | `0xf60323A97c4014e35dd860458e1b78620C95313a` / `0xb911D19b9364968E1837B3020E4361910178b35a` | `0xe66b4C0A854e66bda770073c50968011Ffc3dA08` / `0x3950363A500Fb75f3C4C197EF14044F7402Baa41` | `0x46e84c1C7e9baf93a798D93b7DB1668A427F8B9f` |
+| LLF | `0xcad34CC603C7643CDdeA19C742923e72876e7420` | `0x0eC3B9d03137C7a0A1745a768d019D28C69a19D3` | `0xF052fBBEd8b70b289007d5BA3C804cE8f9eCCfd2` / `0x28BF93791aE05B4F1C4F9fafc4F2ebc7C124563F` | `0x7452dAbF93B22563776757e40Bdf6C6f7DfA2Fc5` / `0x12878A6457acb79479b0893B417828E841FcDeD6` | `0x222A9532D7b1f686Ea5c693bF733D93a333eC036` |
+
+> **Honest caveat on 36 of the 56:** Etherscan auto-verifies identical bytecode, so 3 submissions cascaded
+> to 21 more (and 32 were already verified beforehand). Those cascade-verified entries return an EMPTY
+> `ConstructorArguments` field from the API while carrying full source, full ABI, correct compiler settings,
+> and correct `Proxy`/`Implementation` flags. Etherscan refuses re-submission ("already verified"), so this
+> is not repairable. "Verified" and "verified with decoded args displayed" are not the same claim, and the
+> difference is recorded rather than smoothed over.
+
+**PoR state at gate time (SNAPSHOT):** all 8 feeds are on the refresh keeper and reading minutes old, after
+Ilan funded the keeper key 0.4 ETH (tx `0x6aa32045456297b86f947c20996b1b49f4c763c261fe30e76cae0f47fb721f5c`,
+status 1) and Session 8 added them (3 to 11 feeds, runway 88 days). Before that they were on an unrefreshed
+24h clock. **Reserve headroom is ZERO on every asset** (e.g. NTR supply 5,000,000 vs reserves 5,000,000), so
+a mint of even one token reverts `InsufficientReserves` regardless of feed freshness. Combined with the pools
+having no lanes (`getSupportedChains()` = `[]`), no mint is reachable today by any caller, INCLUDING the
+owner (whose implicit `onlyMintBurn` bypass means "mint authority revoked" does NOT mean "cannot mint").
+**This binds at Session 4:** wiring a lane makes the pool a reachable minter, and an inbound delivery then
+needs BOTH a fresh feed AND reserves above supply.
 
 ## Not live (documented for completeness)
 
