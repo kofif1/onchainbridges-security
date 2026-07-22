@@ -53,6 +53,9 @@ scanners; expected, not a finding.
 | SupplyLimitPolicy (impl) | `0x33Bad648E9F8274aaeD074D9A5033c7893Ac78bA` | [yes](https://sepolia.etherscan.io/address/0x33Bad648E9F8274aaeD074D9A5033c7893Ac78bA#code) | [Slither: 0 Crit/High/Med/Low, 18 Info (2026-07-14)](audits/SUPPLYLIMITPOLICY-AUDIT-2026-07-14.md) | scan this for logic; setMaxSupply = by-design centralization; pre-mint totalSupply read verified correct |
 | TransferRestrictPolicy (proxy) | `0x01B887BA384f1A51D29CB2BdA9117B2C1f03919d` | [yes](https://sepolia.etherscan.io/address/0x01B887BA384f1A51D29CB2BdA9117B2C1f03919d#code) | [Slither: 0 Crit/High/Med, 1 Low (by-design timestamp), 18 Info (2026-07-14)](audits/TRANSFERRESTRICTPOLICY-AUDIT-2026-07-14.md) | ACE Phase-1 primitive #3 (PR #216, 78cba7a); global+per-wallet lockups (outgoing, max-rule) + blocklist + lockupExempt; deploys fully no-op; owner 0xFc99 (Safe gate). **ATTACHED on Sepolia MBT 2026-07-14**: transfer tx `0xda795172cce6d174740d0d3158cd753a332bf41d8918d8ca3e6c154776d44d39` (block 11267779) + transferFrom tx `0x1b6673d9439a3afa88f6472f7430e0e48099ec7950f0cb77bc0c405295223766` (block 11267782), both index 4, params [keccak256("from"),keccak256("to")]. Final chains: transfer/transferFrom [Allow,Pause,Validator,MaxBalance,TransferRestrict], mint [Allow,Pause,Validator,MaxBalance,SupplyLimit]; behavioral proof clean, all knobs no-op; CCID re-read pinged. Rejection strings "address is blocked"/"transfer locked" -> IA decode map |
 | TransferRestrictPolicy (impl) | `0xC68c3f0beeEeA72e76F4A533d2f3fd731934c3A5` | [yes](https://sepolia.etherscan.io/address/0xC68c3f0beeEeA72e76F4A533d2f3fd731934c3A5#code) | [same report](audits/TRANSFERRESTRICTPOLICY-AUDIT-2026-07-14.md) | scan this for logic; owner lockups/blocklist + block.timestamp = by-design; freezes only, cannot move funds |
+| CantonLockVault (ACE-gated) | `0xFE4a573C780DA0F895530ED609FDa7e3b833E15f` | [yes](https://sepolia.etherscan.io/address/0xFE4a573C780DA0F895530ED609FDa7e3b833E15f#code) | [manual review + on-chain behavioral proof: 0 Crit/High/Med (2026-07-19)](audits/CANTON-VAULT-AUDIT-2026-07-19.md) | Canton Phase-2 EVM-side lock vault (PR #259, main 634fb73), deployed by 0xFc99 block 11309903. `lock()` runs the ACE PolicyEngine on the depositor (via LockDepositorExtractor) BEFORE value moves. **Gate ACTIVATED 2026-07-19**: setExtractor tx `0x6d22bd80..`, addPolicy(AllowPolicy 0x7858) tx `0x4a4fd22b..`; `getPolicies(vault,0xf643509c)=[0x7858..]`. Behavioral proof: non-allowlisted `lock()` reverts "address is not on allow list", allowlisted passes to ERC20 allowance. Return leg `_processReport` forwarder-gated + dormant; caps=uint256.max + recipient NOT ACE-gated = HARD PREREQ before enabling Canton->EVM return. Supersedes ungated vault `0x92B8263e..` (live lane cuts over separately, Canton-owned) |
+| LockDepositorExtractor | `0xbEa509a63035322D3117BcdDaa5A969ab4F53203` | [yes](https://sepolia.etherscan.io/address/0xbEa509a63035322D3117BcdDaa5A969ab4F53203#code) | [same report](audits/CANTON-VAULT-AUDIT-2026-07-19.md) | ACE extractor for `CantonLockVault.lock(uint256,string)`; surfaces `payload.sender` as `keccak256("depositor")=0x5bf3f581..` so AllowPolicy checks the DEPOSITOR (not a calldata arg). LOCK_SELECTOR `0xf643509c`. Bound on engine via setExtractor 2026-07-19 (tx `0x6d22bd80..`) |
+| CantonBridgeOutbox (fresh, for gated vault) | `0x0d21fb470c8577Df126db7470c9F843cA378B360` | [yes](https://sepolia.etherscan.io/address/0x0d21fb470c8577Df126db7470c9F843cA378B360#code) | [same report](audits/CANTON-VAULT-AUDIT-2026-07-19.md) | DON-attestation outbox for the gated vault 0xFE4a (PR #259 source, identical to the prior outbox). Deployed by 0xFc99 tx `0xaa5e3e16..` block 11310194; getForwarderAddress()=0xF8344CFd, owner()=0xFc99, isAttested(1..7)=FALSE (clean nonce space). REPLACES reused outbox `0x89f38a88` for the new lane: the outbox keys attestations on raw lockNonce + reverts AlreadyAttested, and 0x89f38a88 already had nonces 1-7 attested from the OLD vault's locks, so the fresh-nonce gated vault (starts at 0) needed a clean outbox or its first-lock attestation would revert -> no mint. Nonce-keyed outbox = single-vault. |
 
 > **Config bug surfaced:** `webapp/src/config/chains.ts` lists Sepolia TLPT as `0x8E531A05...`,
 > which has NO code on Sepolia. The live TLPT token is `0x1ceaaE761C87278acfbE33c89eC523B46FAbCcF3`
@@ -519,6 +522,49 @@ BurnMintTokenPool + MockV3Aggregator are Chainlink source. Constructor args take
 | RWATokenCCT (token) | `0xeAE7190C10Aad2c677a575319A6511A5047A7550` | [yes](https://amoy.polygonscan.com/address/0xeAE7190C10Aad2c677a575319A6511A5047A7550#code) |
 | BurnMintTokenPool | `0x4b8d147f9b7985D338E53eC42A2b0571e2C326D3` | [yes](https://amoy.polygonscan.com/address/0x4b8d147f9b7985D338E53eC42A2b0571e2C326D3#code) |
 
+## Multi-Asset Signing Session 2 (SS2: AVR/TGLP lending vaults + TGLP yield stack) - Polygon Amoy - Etherscan V2 - COMPLETE (2026-07-20)
+
+Signing Session 2 deployed the DeFi layer on top of the SS1 assets, Amoy-only per Phase A: one lending
+vault per asset (provider "Atlas Capital") plus a full yield stack for TGLP. AVR intentionally has NO
+yield stack (decision D5). Deployed by Ilan 2026-07-18 (staged by the Multi-Asset Marketplace channel);
+verify + audit + ledger gate by Session 8, 2026-07-20.
+
+**Source audit: no new contract code.** `LendingVault`, `YieldIssuer`, `YieldToken` and `YTMarket` are
+the already-audited sources, confirmed UNCHANGED vs `origin/main`, so the existing source review covers
+them. SS2 created new INSTANCES with new parameters; those parameters were each verified on-chain
+(below). Compiler solc 0.8.24 / optimizer 200 / via_ir FALSE.
+
+**On-chain state verified (Session 8, 2026-07-20):** vault terms match the approved runbook exactly
+(AVR 6500 bps LTV / 500 bps APR / $250 per token; TGLP 7500 bps / 420 bps / $25); each vault pre-funded
+100,000 TestUSDC; collateral tokens resolve to the SS1 assets (AVR `0x23FFAE0C` "Aurum Vault Reserve",
+TGLP `0xeAE7190C` "Thames Gateway Logistics Park"); the TGLP yield stack is internally consistent
+(issuer.rwaToken == the TGLP vault's collateral; issuer.yieldToken == market.ytToken == YT-TGLP;
+YT.owner == the issuer; one shared settlement USDC `0xce8C237c`); `currentPeriodId = 0` (no period
+opened yet); and all five are admitted on the Amoy MASTER allowlist `0x7A6bd37D`, which is also the
+YT's `allowPolicy`.
+
+| Contract | Address | Verified | Notes |
+|---|---|---|---|
+| AVR LendingVault (Atlas Capital) | `0x34aE4bc3850651ad92036de01e530be943309218` | [yes](https://amoy.polygonscan.com/address/0x34aE4bc3850651ad92036de01e530be943309218#code) | collateral AVR; 65% LTV, 5.0% APR, $250/token; 100k USDC |
+| TGLP LendingVault (Atlas Capital) | `0x21389D0c8ABAA1C555516a495d3558CE48a5221A` | [yes](https://amoy.polygonscan.com/address/0x21389D0c8ABAA1C555516a495d3558CE48a5221A#code) | collateral TGLP; 75% LTV, 4.2% APR, $25/token; 100k USDC |
+| TGLP YieldIssuer | `0x52966F83C3a6D68104aa285e01cAbFf944c9a236` | [yes](https://amoy.polygonscan.com/address/0x52966F83C3a6D68104aa285e01cAbFf944c9a236#code) | rwaToken TGLP, yieldCurrency USDC (6dp); deploys the YT |
+| YT-TGLP (YieldToken) | `0xbA3198097fd29d8DEA1CB7ac7Ac6896DB4A24DE3` | [yes](https://amoy.polygonscan.com/address/0xbA3198097fd29d8DEA1CB7ac7Ac6896DB4A24DE3#code) | name/symbol "YT-TGLP"; owner = the issuer; allowPolicy = MASTER |
+| TGLP YTMarket | `0xf0BAeD5FF09731C1278fd0b843681E906985c1d0` | [yes](https://amoy.polygonscan.com/address/0xf0BAeD5FF09731C1278fd0b843681E906985c1d0#code) | fixed-price YT market, settles in USDC |
+
+> **Verification gotcha (recorded for the next signing session):** these must be compiled from the
+> Multi-Asset worktree; its `lib/` submodule revisions are what reproduce the deployed bytecode, while
+> the main-repo checkout yields a different metadata hash and will NOT verify. Additionally,
+> `forge verify-contract` failed on BOTH LendingVaults with "deployment bytecode does NOT match" until
+> `--compiler-version v0.8.24+commit.e11b9ed9` and `--num-of-optimizations 200` were passed EXPLICITLY
+> (foundry was not transmitting them for those two; the other three verified without it). Independent
+> local proof was obtained first: the on-chain creation input equals the locally compiled creation
+> bytecode plus the documented constructor args, with lengths reconciling exactly.
+
+> **Carried forward (mixed-version state, for the YT-v2 migration):** TGLP's yield stack is v1
+> `YieldToken`. PR #264 wires `YieldTokenV2` into `YieldIssuer`, so stacks deployed after that merge
+> mint v2 while TGLP stays v1 and lacks v2's issuer primitives. TGLP must ride the SAME coordinated,
+> Ilan-gated YT-v2 migration wave rather than a bespoke later redeploy.
+
 ## Base Sepolia (84532) - Phase-0 stack - Etherscan V2 - COMPLETE (2026-07-17)
 
 The MBT + full ACE stack deployed for the (pending) Base go-live. All 11 Etherscan-V2-verified.
@@ -551,6 +597,397 @@ PolicyEngine/AllowPolicy/PausePolicy/TransferExtractor = vendored Chainlink ACE 
 
 Status: verified + audited (this section). Base is NOT yet in the dApp - pending the PoR keeper running,
 the config/LIVE_DIRECTED PR, and pre-demo-check green. When those land, Base flips live.
+
+## CCID Mainnet Agent TESTBED (Base 8453 + Ethereum 1) - Etherscan V2 - COMPLETE (2026-07-20)
+
+> ### READ THIS FIRST: this is a MAINNET TESTBED, NOT the Onchain Bridges mainnet launch.
+> These contracts are deployed under `policy_mainnet_testbed_1usd_cap`: a sanctioned, $1-per-tx-capped
+> agent testbed, deployed from a FRESH BURNER key A2 `0xEd3434017182ae8bFcd33cDbaEE593eA1c453A4A`.
+> The protocol has NOT launched on mainnet. `policy_mainnet_secure_signing_gate` remains INTACT and
+> uncrossed: the protocol admin key `0xFc9933C8896715c1f3ADF9b8250ac051a95Fd33c` is **nonce 0 on BOTH
+> Base and Ethereum** (independently verified by the Verify & Ledger gate, 2026-07-20; Ethereum balance
+> 0 wei). MBT `totalSupply() == 0` on both chains: no value has been minted. Do not cite these addresses
+> as evidence that OB is live on mainnet.
+>
+> ### Recorded deliberately: a wrong-key near-miss, and the control that caught it
+> **The control worked.** A MANDATORY pre-broadcast signer check is codified at RUNBOOK section 0.5 and in
+> CLAUDE.md's Hard Rules (merged as PR #268), with the procedure at
+> `SESSION-COORDINATION/MAINNET-KEY-SAFETY.md`: before ANY mainnet `--broadcast`, run
+> `cast wallet address --private-key $PRIVATE_KEY` and confirm it prints the intended deployer; anything
+> else is a STOP condition. That rule exists because of an earlier wrong-key near-miss (2026-07-18), and it
+> is why every mainnet transaction in this sequence was preceded by a signer verification.
+>
+> **What happened.** A repo `.env` sets `PRIVATE_KEY=0xFc99...` (the protocol admin key) and silently
+> clobbers a manually-loaded key in the same shell. During the Ethereum vault step this caused a deploy to
+> be attempted from `0xFc99` instead of the A2 burner. One run reached forge and FAILED TO SEND on
+> insufficient funds (`0xFc99` holds 0 ETH on Ethereum), producing 0 receipts; a later recurrence was
+> stopped by the signer check before any broadcast. The step was reset to A2 and re-run successfully.
+>
+> **Verified outcome (independently confirmed by this gate, not accepted on report):** `0xFc99` is
+> **nonce 0 on BOTH Base and Ethereum**, with 0 wei on Ethereum. NO transaction was signed by the protocol
+> admin key on mainnet, NO state changed, NO funds were at risk, and `policy_mainnet_secure_signing_gate`
+> was never crossed.
+>
+> **No key was exposed or compromised.** The failure mode was a wrong key LOADED into a shell, not a key
+> leaked. `0xFc99`'s address is already public from testnet deployments, so this entry discloses nothing
+> that was not already on-chain.
+>
+> This is recorded because an audit ledger that lists only successes is not an audit ledger. The evidence
+> that a control works is that it catches something.
+
+**Deploy provenance.** Built from branch `ccid-base-testbed-deploy` at commit `850cf43` (scripts), with
+committed broadcast evidence (`broadcast/{DeployWithACE,DeployCCIDRegistries,DeployKycAllowlister,DeployTestbedVault,WireLane}.s.sol/{8453,1}/run-latest.json`).
+Compiler for ALL contracts: **solc v0.8.24+commit.e11b9ed9, optimizer runs 200, `FOUNDRY_PROFILE=ccid`
+(via_ir=true)** - every deploy script ran under that profile, and all 48 verifications matched it with no
+default-profile fallback needed. Local `ccid`-profile build reproduced each deployed creation bytecode as
+an exact prefix, i.e. including the metadata hash.
+
+**Twin-address property (chain-qualify everything).** Every contract below has the IDENTICAL address on
+Base and Ethereum (A2 was nonce-0 on both and the deploy sequence is identical, so CREATE addresses twin).
+Identity was therefore resolved PER CHAIN via `typeAndVersion`, never assumed. The discriminator proving
+two genuinely distinct chains is the CCIP router on the pool: Base `0x881e3A65B4d4a04dD529061dd0071cf975F58bCD`
+vs Ethereum `0x80226fc0Ee2b096224EeAc085Bb9a8cba1146f7D` (both "Router 1.2.0"). All 24 addresses also have
+identical bytecode lengths on both chains.
+
+**On-chain identity + wiring (verified independently on each chain, keyed RPC).** All contracts code-present
+with correct `typeAndVersion`; `pool.getToken() == MBT`; `KycAllowlister.allowPolicy() == AllowPolicy`;
+`AllowPolicy.owner() == KycAllowlister`; `KycAllowlister.owner() == KycAllowlister.allowlister() == A2`;
+MBT reads "Miami Beach Tower"/MBT/18; `LendingVault.collateralToken() == MBT`.
+
+**Policy chain / VALIDATOR ATTACH.** The attach was deliberately deferred to last (after the credential
+backfill and parity proof, since attaching into a zero-credential registry would revert every mint/bridge),
+and was authorized directly by Ilan.
+
+**BASE 8453: ATTACHED and ENFORCING, verified by this gate 2026-07-20.**
+`getPolicies(MBT, transfer|transferFrom|mint) == [AllowPolicy 0xf5BC0a32, PausePolicy 0x859864b8,
+CredentialRegistryIdentityValidatorPolicy 0x7488f4cE]` on ALL THREE selectors, validator at index 2.
+Attach txs all receipt status 1: `0xf83f79a06d1078f7d2b3cb5f0a8c1be53187dc5a2a030623dddb48fd6a111a24`,
+`0xfda0c1615d44b7b15def6a56bf87742cc6b6738636cf313d69b6cdd8a9af5721`,
+`0xa60a70d7e78675674b44731a6ba46e6b9d94598e5df67cc223a75b38dffac904` (blocks 48907018-48907020).
+`validate()`: A2 = true, Pool = true; negative controls `0x...dEaD`, the MBT token, and a synthetic address
+all = false.
+
+**END-TO-END ENFORCEMENT PROOF (not merely "installed").** Because the credentialed set EQUALS the
+allowlisted set, any uncredentialed sender is also non-allowlisted, so AllowPolicy at index 0 rejects first
+and an ordinary revert proves NOTHING about the validator. The validator was therefore isolated with an
+`eth_call` STATE OVERRIDE (no transaction, no state change, no address stranded), gated on a positive
+control proving the endpoint honours overrides (`addressAllowed(synthetic)` = false without, true with):
+- A) no override, synthetic sender not allowlisted: rejecting policy = `0xf5BC0a32...` (AllowPolicy)
+- B) override on, synthetic sender ALLOWLISTED but UNCREDENTIALED: rejecting policy = `0x7488f4cE...`
+  (the CREDENTIAL VALIDATOR)
+The rejection MOVES to the validator the moment the allowlist stops being the binding constraint, which is
+end-to-end evidence the ENGINE consults it on the real transfer path. Attribution is taken from
+`PolicyRunRejected(address policy, ...)` BY ADDRESS, not by reason string. Slot for the override was derived
+independently (`keccak256(abi.encode(account, 0xfe3a2b7f...7800))`) and matched. Reproduced independently by
+both the deploying channel and this gate.
+
+**ETHEREUM 1: ATTACHED and ENFORCING, verified by this gate 2026-07-20** (verified independently on
+Ethereum's own endpoint, NOT inferred from the Base result despite the twin addresses). Composition
+identical: `[AllowPolicy, PausePolicy, Validator]` at index 2 on all three selectors. Attach txs all
+receipt status 1: `0xe3bf38a471f0b6a176d9167161790620b6f0175f471035da773bade939ceec2f`,
+`0xcc03528c3ba959d1aadedd3a0b14ca097e57f8e4c43e08f27ad7aaceaaaaf8e7`,
+`0xd7dd40727118ddbeb4303f94cff1173001e11b0159ca3a77b096a878795052c9` (blocks 25578374-25578377).
+`validate()`: A2 = true, Pool = true, MBT-token control = false, synthetic control = false. Ethereum's
+endpoint was separately confirmed to honour state overrides (its own positive control, not assumed from
+Base), and the A/B reproduces exactly: no override rejects at `0xf5BC0a32` (AllowPolicy), override-on
+rejects at `0x7488f4cE` (the validator).
+
+**PERMIT-PROOF (the gate PERMITS, not merely BLOCKS) - BOTH CHAINS.** credentialed A2 -> credentialed Pool,
+`transfer(Pool, 0)` via `eth_call`: **NO REVERT on Base AND Ethereum.** Legitimate parties are not stranded.
+> **STANDING GATE ITEM, added 2026-07-20 (credit: the CCID channel).** Every compliance attach needs a
+> PERMIT-proof alongside the REJECT-proof. All of composition / `validate()` / the A/B prove only that the
+> gate BLOCKS. An over-restrictive or misconfigured validator passes every one of those and still bricks the
+> asset. When the token has zero holders, **"it blocks everyone" and "it works" are indistinguishable** until
+> the first real transfer fails in front of an audience. Always simulate a fully-legitimate transfer too.
+
+State at verification: enforcement LIVE on both chains, MBT `totalSupply` still 0 (nothing has moved),
+allowlisted set == credentialed set == {A2, Pool}, invariant intact and unchanged by the attach.
+This supersedes the earlier "validator NOT attached" carve-out on the Batch #1 PASS.
+
+**CCIP lane wiring: PASS.** Each pool records ONLY the remote selector, which is correct. Base pool
+`isSupportedChain(5009297550715157269)` = true; Ethereum pool `isSupportedChain(15971525489660198786)` = true;
+own-selector = false. WireLane txs both receipt status 1: Base `0x04d1b8cae9c1e23b52224fcc2ec89a5b5ab9026e8cd1d477bdd6d693da81f47a`,
+Ethereum `0xe75bdf0ade3721fe1fd2d013ab7f16bc6b43e984a8244946ad072f57e8b9454a`.
+
+**AllowPolicy allowlist ENUMERATION (not just spot reads), 2026-07-20 point-in-time.** NET allowlist =
+exactly **{A2, Pool `0xAd01B8A9C7497d7c560a67eEf40183064bec3A1f`}** on BOTH chains, zero disallow events.
+Confirmed by TWO INDEPENDENT enumerations (Verify & Ledger and RWA Bridge Session 8), which agree exactly.
+
+Why event-enumeration is a complete record of state for this implementation: in the deployed AllowPolicy,
+`allowAddress` and `disallowAddress` are the ONLY two functions that write `allowList`, both are `onlyOwner`,
+and both emit. There is no batch variant and no initializer that seeds the mapping. If a silent write path
+existed, all event-based enumeration would collapse.
+
+Ownership history matters here and corrects a natural but WRONG assumption (the current owner did not always
+own it). On both chains: `OwnershipTransferred 0x0 -> A2` at the creation block (Base 48889068, Ethereum
+25576114), then `A2 -> KycAllowlister 0xAD45f7B0` later (Base 48889762, Ethereum 25576489). **Both allowlist
+entries were written in between, while A2 was the DIRECT owner** (Base blocks 48889087 / 48889088; Ethereum
+25576135 / 25576136). So the load-bearing fact is NOT "the KycAllowlister owns it" but rather:
+**A2 is the only actor in BOTH regimes** (direct owner then, sole `allowlister` via the KycAllowlister now),
+and every A2 transaction is accounted for (Base nonce 50 == exactly the 50 committed broadcast receipts, and
+the scanned windows contain the entry blocks above).
+
+TWO CONDITIONS this enumeration depends on, stated because they can expire:
+1. **AllowPolicy is UPGRADEABLE** (ERC-7201 storage behind an ERC1967 proxy). An implementation swap could
+   introduce a write path that sets `allowList` WITHOUT emitting, silently invalidating every event-based
+   enumeration. Verified: exactly ONE `Upgraded` event on each chain, at the creation block (impl
+   `0x64FAe191F68e29E447Aa484A4d16648CABdE7CFc`), no mid-life upgrade, and the live impl slot still reads
+   that same impl.
+2. The result is POINT-IN-TIME. It expires if the `allowlister` is rotated, the proxy is upgraded, or any
+   new address is allowlisted. **Re-enumerate immediately before the validator attach.**
+
+**Audit.** OB-authored contracts (RWATokenCCT, ERC20MintExtractor, KycAllowlister, TestUSDC, LendingVault)
+are BYTE-IDENTICAL to `origin/main` (0 diff vs the deploy commit), so prior reviews carry:
+[MULTIASSET-SS1-AUDIT-2026-07-16](audits/MULTIASSET-SS1-AUDIT-2026-07-16.md) (RWATokenCCT, ERC20MintExtractor),
+[SECURITY-REVIEW-2026-06-17](audits/SECURITY-REVIEW-2026-06-17.md) (LendingVault, TestUSDC), and the CCID
+gate review at PR #136 (KycAllowlister). Vendored: Chainlink ACE (PolicyEngine, AllowPolicy, PausePolicy,
+ERC20TransferExtractor, IdentityRegistry, CredentialRegistry, CredentialRegistryIdentityValidatorPolicy,
+OnlyAuthorizedSenderPolicy) under the **BUSL** additional-use grant, flagged for the commercial-license gate;
+BurnMintTokenPool = Chainlink CCIP; MockV3Aggregator = Chainlink mock; ERC1967Proxy = OpenZeppelin.
+**No copied non-permissive code.**
+
+All 48 targets (24 addresses x 2 chains) are explorer-verified, each **as the expected contract name**, and
+that status was independently re-confirmed by this gate via `getsourcecode` rather than taken from the
+verification tooling's own output.
+
+| Contract | Address (same on both chains) | Base 8453 | Ethereum 1 | Provenance |
+|---|---|---|---|---|
+| Token PolicyEngine (proxy) | `0xeB2215E7abA5B5D98BA28eEAc7A0b5F96e550EAF` | [yes](https://basescan.org/address/0xeB2215E7abA5B5D98BA28eEAc7A0b5F96e550EAF#code) | [yes](https://etherscan.io/address/0xeB2215E7abA5B5D98BA28eEAc7A0b5F96e550EAF#code) | OZ ERC1967Proxy |
+| Token PolicyEngine (impl) | `0xDa7b6C95dfb74a992c8B26A3B5067B8ae5215b2e` | [yes](https://basescan.org/address/0xDa7b6C95dfb74a992c8B26A3B5067B8ae5215b2e#code) | [yes](https://etherscan.io/address/0xDa7b6C95dfb74a992c8B26A3B5067B8ae5215b2e#code) | ACE (BUSL) |
+| AllowPolicy (proxy) | `0xf5BC0a322BB5D56324e1a2B95142596E1382Cefe` | [yes](https://basescan.org/address/0xf5BC0a322BB5D56324e1a2B95142596E1382Cefe#code) | [yes](https://etherscan.io/address/0xf5BC0a322BB5D56324e1a2B95142596E1382Cefe#code) | OZ ERC1967Proxy |
+| AllowPolicy (impl) | `0x64FAe191F68e29E447Aa484A4d16648CABdE7CFc` | [yes](https://basescan.org/address/0x64FAe191F68e29E447Aa484A4d16648CABdE7CFc#code) | [yes](https://etherscan.io/address/0x64FAe191F68e29E447Aa484A4d16648CABdE7CFc#code) | ACE (BUSL) |
+| PausePolicy (proxy) | `0x859864b8F4f1be248D62A45aB8051059500B65c9` | [yes](https://basescan.org/address/0x859864b8F4f1be248D62A45aB8051059500B65c9#code) | [yes](https://etherscan.io/address/0x859864b8F4f1be248D62A45aB8051059500B65c9#code) | OZ ERC1967Proxy |
+| PausePolicy (impl) | `0x6Bd50d29343805D8E1F3041436e93B6E2Cc4870f` | [yes](https://basescan.org/address/0x6Bd50d29343805D8E1F3041436e93B6E2Cc4870f#code) | [yes](https://etherscan.io/address/0x6Bd50d29343805D8E1F3041436e93B6E2Cc4870f#code) | ACE (BUSL) |
+| ERC20TransferExtractor | `0x2d86a9f6Fed041C4eE126FaE3C220542F0c55Cd8` | [yes](https://basescan.org/address/0x2d86a9f6Fed041C4eE126FaE3C220542F0c55Cd8#code) | [yes](https://etherscan.io/address/0x2d86a9f6Fed041C4eE126FaE3C220542F0c55Cd8#code) | ACE (BUSL) |
+| ERC20MintExtractor | `0xfd8880CdCA20Dc9BD00810B6f66Abff5073CC4bd` | [yes](https://basescan.org/address/0xfd8880CdCA20Dc9BD00810B6f66Abff5073CC4bd#code) | [yes](https://etherscan.io/address/0xfd8880CdCA20Dc9BD00810B6f66Abff5073CC4bd#code) | OB (SS1 audit) |
+| MockV3Aggregator (PoR) | `0x0Aa476554284A058E65cCa6a8E469e26A4467aeE` | [yes](https://basescan.org/address/0x0Aa476554284A058E65cCa6a8E469e26A4467aeE#code) | [yes](https://etherscan.io/address/0x0Aa476554284A058E65cCa6a8E469e26A4467aeE#code) | Chainlink mock |
+| RWATokenCCT (MBT) | `0xB40195A6ED439ca3AB7f6db6EafF56e7c5d26853` | [yes](https://basescan.org/address/0xB40195A6ED439ca3AB7f6db6EafF56e7c5d26853#code) | [yes](https://etherscan.io/address/0xB40195A6ED439ca3AB7f6db6EafF56e7c5d26853#code) | OB (SS1 audit) |
+| BurnMintTokenPool | `0xAd01B8A9C7497d7c560a67eEf40183064bec3A1f` | [yes](https://basescan.org/address/0xAd01B8A9C7497d7c560a67eEf40183064bec3A1f#code) | [yes](https://etherscan.io/address/0xAd01B8A9C7497d7c560a67eEf40183064bec3A1f#code) | Chainlink CCIP |
+| CCID RegistryAdminEngine (proxy) | `0x68bd4472298fCC5feDDdd0e2e718Ec2e66C83f0e` | [yes](https://basescan.org/address/0x68bd4472298fCC5feDDdd0e2e718Ec2e66C83f0e#code) | [yes](https://etherscan.io/address/0x68bd4472298fCC5feDDdd0e2e718Ec2e66C83f0e#code) | OZ ERC1967Proxy |
+| CCID RegistryAdminEngine (impl) | `0x469dEb78304b300e8fB7b4fbc688DB99c5ff36fc` | [yes](https://basescan.org/address/0x469dEb78304b300e8fB7b4fbc688DB99c5ff36fc#code) | [yes](https://etherscan.io/address/0x469dEb78304b300e8fB7b4fbc688DB99c5ff36fc#code) | ACE (BUSL) |
+| CCID IssuerGatePolicy (proxy) | `0x009CE93076ed4Eb9A3c79D83ad82421e9839bCf4` | [yes](https://basescan.org/address/0x009CE93076ed4Eb9A3c79D83ad82421e9839bCf4#code) | [yes](https://etherscan.io/address/0x009CE93076ed4Eb9A3c79D83ad82421e9839bCf4#code) | OZ ERC1967Proxy |
+| CCID IssuerGatePolicy (impl) | `0xdF8Cc9E0dB4569B884Ea3d6D2532B2a8a16C52D2` | [yes](https://basescan.org/address/0xdF8Cc9E0dB4569B884Ea3d6D2532B2a8a16C52D2#code) | [yes](https://etherscan.io/address/0xdF8Cc9E0dB4569B884Ea3d6D2532B2a8a16C52D2#code) | ACE (BUSL) |
+| CCID IdentityRegistry (proxy) | `0x49eE2710b173590262bb70d697363a2B0B0d9D7d` | [yes](https://basescan.org/address/0x49eE2710b173590262bb70d697363a2B0B0d9D7d#code) | [yes](https://etherscan.io/address/0x49eE2710b173590262bb70d697363a2B0B0d9D7d#code) | OZ ERC1967Proxy |
+| CCID IdentityRegistry (impl) | `0x2aD2000cc082DFdbBcb0a3a729497e52dd5b1D1d` | [yes](https://basescan.org/address/0x2aD2000cc082DFdbBcb0a3a729497e52dd5b1D1d#code) | [yes](https://etherscan.io/address/0x2aD2000cc082DFdbBcb0a3a729497e52dd5b1D1d#code) | ACE (BUSL) |
+| CCID CredentialRegistry (proxy) | `0x8934085baA17E322465925E17d1EF5EC48602322` | [yes](https://basescan.org/address/0x8934085baA17E322465925E17d1EF5EC48602322#code) | [yes](https://etherscan.io/address/0x8934085baA17E322465925E17d1EF5EC48602322#code) | OZ ERC1967Proxy |
+| CCID CredentialRegistry (impl) | `0x8531ED4dF95c8b86014a06bAf3bFD7a76f6F1d10` | [yes](https://basescan.org/address/0x8531ED4dF95c8b86014a06bAf3bFD7a76f6F1d10#code) | [yes](https://etherscan.io/address/0x8531ED4dF95c8b86014a06bAf3bFD7a76f6F1d10#code) | ACE (BUSL) |
+| CCID ValidatorPolicy (proxy) | `0x7488f4cE569af8B1e6FcC67Fd5fDFad210bC0599` | [yes](https://basescan.org/address/0x7488f4cE569af8B1e6FcC67Fd5fDFad210bC0599#code) | [yes](https://etherscan.io/address/0x7488f4cE569af8B1e6FcC67Fd5fDFad210bC0599#code) | OZ ERC1967Proxy; ATTACHED on Base (enforcing), Ethereum pending |
+| CCID ValidatorPolicy (impl) | `0x85e4E3793e1BeA928AfF7C9EB229409FEd343EC4` | [yes](https://basescan.org/address/0x85e4E3793e1BeA928AfF7C9EB229409FEd343EC4#code) | [yes](https://etherscan.io/address/0x85e4E3793e1BeA928AfF7C9EB229409FEd343EC4#code) | ACE (BUSL); ATTACHED on Base (enforcing), Ethereum pending |
+| KycAllowlister | `0xAD45f7B00a7fB7c3a72Bd4f84969058f6910428A` | [yes](https://basescan.org/address/0xAD45f7B00a7fB7c3a72Bd4f84969058f6910428A#code) | [yes](https://etherscan.io/address/0xAD45f7B00a7fB7c3a72Bd4f84969058f6910428A#code) | OB (#136) |
+| TestUSDC (mock) | `0x35cb83515bc206d753cd97db08c741a2A3906ebf` | [yes](https://basescan.org/address/0x35cb83515bc206d753cd97db08c741a2A3906ebf#code) | [yes](https://etherscan.io/address/0x35cb83515bc206d753cd97db08c741a2A3906ebf#code) | OB (2026-06-17) |
+| LendingVault ("Meridian") | `0xD95ff9F192C078985d24cb070d9e647aC59F6D69` | [yes](https://basescan.org/address/0xD95ff9F192C078985d24cb070d9e647aC59F6D69#code) | [yes](https://etherscan.io/address/0xD95ff9F192C078985d24cb070d9e647aC59F6D69#code) | OB (2026-06-17) |
+
+> ### STANDING INVARIANT for EVERY policy attach on EVERY chain (found 2026-07-20, not a defect today)
+> `PolicyEngine.run` does NOT unconditionally run every attached policy. It iterates the chain and
+> **RETURNS IMMEDIATELY on the first policy that returns `PolicyResult.Allowed`** (enum is
+> {None, Allowed, Continue}). A policy that reverts rejects the whole call; a policy returning `Continue`
+> passes control to the next one.
+> **Therefore any policy that returns `Allowed` short-circuits every policy AFTER it in that chain**, and
+> `getPolicies` would still show a perfect-looking composition while the downstream policies never run.
+> The ACE package ships exactly such a contract (`BypassPolicy`, same `policies/` directory).
+> **THE RULE (general form): before ANY policy attach on ANY chain, read the `run()` return value of
+> EVERY policy already at a LOWER INDEX than the one being attached, and confirm each returns `Continue`.
+> Checking only the policy you are adding is INSUFFICIENT, because it is the policies AHEAD of yours that
+> can skip you.** Index order is load-bearing, not cosmetic.
+>
+> Verified for the current MBT chain, all three links (an earlier version of this note checked only index 0
+> and index 2 and missed PausePolicy at index 1, which sits directly ahead of the credential validator):
+> `AllowPolicy.run` returns `Continue` on pass (AllowPolicy.sol:107); `PausePolicy.run` returns `Continue`
+> on pass and reverts `PolicyRejected("contract is paused")` when paused (PausePolicy.sol:78-80);
+> `CredentialRegistryIdentityValidatorPolicy.run` returns `Continue` on pass (line 68). The full chain
+> executes and there is NO bypass in any deployed chain today.
+>
+> **Exhaustive library audit (2026-07-20):** across every policy in
+> `lib/chainlink-ace/packages/policy-management/src/policies/`, **`BypassPolicy` is the ONLY contract that
+> returns `PolicyResult.Allowed`** and therefore the only one that can short-circuit a chain. All others
+> (AllowPolicy, PausePolicy, IntervalPolicy, MaxPolicy, OnlyAuthorizedSenderPolicy, OnlyOwnerPolicy,
+> RejectPolicy, RoleBasedAccessControlPolicy, SecureMintPolicy, VolumePolicy, VolumeRatePolicy,
+> CertifiedActionValidatorPolicy) return `Continue`; the two CertifiedAction* subclasses declare no return
+> of their own and inherit the base. So the concrete check is: **is `BypassPolicy` (or any custom
+> `Allowed`-returning policy) present at a lower index?**
+>
+> **Corollary for verifying an attach:** `getPolicies` proves a policy is INSTALLED, `validate()` proves it
+> DISCRIMINATES in isolation, and only an address-attributed revert proves the ENGINE consulted it. The
+> engine reverts `PolicyRunRejected(address policy, string rejectReason, Payload)` naming the REJECTING
+> POLICY BY ADDRESS, so attribute on that address, not on the reason string. Note that when the credentialed
+> set EQUALS the allowlisted set, an uncredentialed sender is also non-allowlisted, so `AllowPolicy` (index 0)
+> rejects first and such a test proves NOTHING about the validator. Isolating the validator requires an
+> allowlisted-but-uncredentialed sender, which must NOT be created on mainnet (it would break the
+> credentialed-superset-of-allowlist invariant and strand an address); use an `eth_call` STATE OVERRIDE of
+> the AllowPolicy slot (ERC-7201 base `0xfe3a2b7f46cd21f6575f413edd13b679ddeba1bf1b08400ac236f2528fe97800`,
+> slot = `keccak256(abi.encode(account, base))`) or a testnet rehearsal.
+>
+> **State-override tests REQUIRE a positive control.** Many endpoints silently IGNORE the override object
+> rather than erroring, and you then get an ordinary AllowPolicy rejection that reads like a clean negative
+> result. Before trusting the outcome, override the slot and simulate a call you expect to PASS the
+> allowlist: if it still reverts with "address is not on allow list", the override was dropped and the test
+> is VOID, not negative. A silently-ignored override is a bug signal, never a data point.
+
+**CCID issuer authorization (verified by this gate, 2026-07-20).** The fresh mainnet CCID issuer
+`0xa50BDbb59b3916BEf55aeaC87fa268B0A190e9cC` is authorized on the IssuerGate
+`0x009CE93076ed4Eb9A3c79D83ad82421e9839bCf4` on BOTH chains: `senderAuthorized(issuer) == true` on Base and
+Ethereum; gate `owner() == A2` on both; authorization txs both receipt status 1 with `to` = the IssuerGate
+(Base `0x8c89b76a12c9fcddb1e32571ceee96795d9b57668840d9061002db28a3fb2f9d` block 48906027, Ethereum
+`0x1c45f21b5b241fbc26641ccbad64733552767bcebc63bc3d30a3f11e37803505` block 25578157).
+**BY DESIGN, NOT AN OVERSIGHT:** `senderAuthorized(A2) == true` is intentionally RETAINED on both chains so a
+fault in the fresh issuer key cannot lock out issuance. That means TWO keys can issue credentials today.
+Moving to a single-issuer posture (revoking A2) is a separate later step, gated on the backfill being proven.
+
+> **Gate-tooling gotchas recorded for the next mainnet batch:** (1) the Etherscan V2 key's free plan does
+> NOT cover Base for the `proxy` module (`eth_getCode`) or for `logs`, but the `contract` module
+> (`getsourcecode` / `verifysourcecode`) DOES work on Base. (2) Alchemy's free tier caps `eth_getLogs` to a
+> **10-block range**, which is what defeats naive allowlist enumeration. Do NOT conclude the chain is
+> unreadable: the PUBLIC Base endpoint `https://mainnet.base.org` serves roughly **9000-block** log ranges
+> and is the better endpoint for Base log scans (CCID scanned 48889000..48905848 in one pass, zero errors).
+> Pick the endpoint per capability rather than assuming the keyed one is always superior. (3) `forge verify-contract` needs `--watch`; without it submissions silently do not land. (4) Under
+> the 3/sec rate limit, forge reported FAILED for 20 contracts whose verification had actually SUCCEEDED, so
+> forge stdout is not ground truth: always re-check with `getsourcecode`.
+
+## Token Controls Phase 2 v2 stack (Sepolia 11155111) - Etherscan V2 - COMPLETE (2026-07-21)
+
+The ERC-3643 issuer-primitive stack (AgentRole, freeze/unfreeze, forcedTransfer, recoveryAddress, batch ops).
+Deployed by Ilan, signer `0xFc9933C8896715c1f3ADF9b8250ac051a95Fd33c` (correct for Sepolia TESTNET; the
+never-0xFc99 rule is MAINNET-scoped). Gate run by Verify & Ledger; address subset independently re-verified
+by RWA Bridge Session 8.
+
+**Audit:** [TOKEN-CONTROLS-V2-AUDIT-2026-07-20](audits/TOKEN-CONTROLS-V2-AUDIT-2026-07-20.md). FRESH review,
+not cite-prior: `RWATokenV2` and `YieldTokenV2` are NEW sources and the earlier reviews cover only v1
+`RWATokenCCT` / `YieldToken`. Result: 0 Critical, 0 High, **1 Medium (F-1)**, remainder informational, plus
+a recorded POSITIVE finding that the batch operations correctly synthesise a per-item single-op policy run
+(the naive implementation would be a total compliance bypass on a default-allow engine).
+
+**F-1 drove a full redeploy.** The Medium finding was that `_requireAdmitted` failed CLOSED on the allowlist
+but OPEN on the credential validator, so the agent bypass paths could be configured allowlist-only while
+ordinary transfers stayed credential-gated. Fixed at the CONTRACT level (PR #277, merge `2505dc4`):
+`setAdmissionCheckers` now reverts `AdmissionValidatorRequired()` on a zero validator, and a deliberate
+waiver requires `setAdmissionCheckersUnsafe`, which emits `AdmissionValidatorWaived` so the choice is
+auditable ON-CHAIN rather than inferred from a zero field. Because `YieldIssuer.rwaToken`/`yieldToken`,
+`YTMarket.ytToken`, `LendingVault.collateralToken` and the pool's token are all `immutable` (verified: no
+setter exists to re-point any of them), the token redeploy forced the ENTIRE 6-contract stack.
+
+**F-1 closure PROVEN IN THE DEPLOYED BYTECODE, not merely built from fixed source.** Simulated FROM THE
+OWNER, because `setAdmissionCheckers` is `onlyOwner` and the modifier runs BEFORE the guard, so a call from
+any other sender reverts for an unrelated reason and would be a FALSE GREEN:
+
+| Call | Result |
+|---|---|
+| NEW `setAdmissionCheckers(allow, 0)` from owner | REVERT `0xa2bdd2c2` = `AdmissionValidatorRequired()` |
+| RETIRED token, same call | **SUCCESS** (the hazard was real, and is preserved on the dead token) |
+| NEW `setAdmissionCheckers(allow, VALIDATOR)` from owner | **SUCCESS** (positive control: the setter is not bricked) |
+| NEW `setAdmissionCheckersUnsafe` from owner / from NON-owner | SUCCESS / REVERT (hatch present AND owner-gated) |
+| RETIRED token `setAdmissionCheckersUnsafe` | REVERT (function absent pre-fix) |
+
+The retired-token rows are what make this a proof rather than a positive-only assertion; the positive-control
+row is what rules out an over-restrictive fix that would satisfy every reject-test while being unusable.
+
+### Canonical addresses (all 6 explorer-verified; status independently re-confirmed via `getsourcecode`, NOT taken from the verification tooling)
+
+| Contract | Address | Verified |
+|---|---|---|
+| RWATokenV2 (MBT v2) | `0x661d63bE70A1eb9A904636F5dDcaDEeFdF6337B5` | [yes](https://sepolia.etherscan.io/address/0x661d63bE70A1eb9A904636F5dDcaDEeFdF6337B5#code) |
+| BurnMintTokenPool v2 | `0xA2eB25A10043C64096da1D97C1Fcc6259Bc909AC` | [yes](https://sepolia.etherscan.io/address/0xA2eB25A10043C64096da1D97C1Fcc6259Bc909AC#code) |
+| YieldIssuer (v2 refs) | `0xE3B2de4218C0Ab1C9149AAAe5135BF3D54d367c8` | [yes](https://sepolia.etherscan.io/address/0xE3B2de4218C0Ab1C9149AAAe5135BF3D54d367c8#code) |
+| YieldTokenV2 (YT v2) | `0x3043A478196b8c1F39561eB336A10823ea5b652F` | [yes](https://sepolia.etherscan.io/address/0x3043A478196b8c1F39561eB336A10823ea5b652F#code) |
+| YTMarket v2 | `0x2401F3Bde7Bc6c0381B3ca030a4769DaA383938D` | [yes](https://sepolia.etherscan.io/address/0x2401F3Bde7Bc6c0381B3ca030a4769DaA383938D#code) |
+| LendingVault v2 ("Meridian Lending") | `0xdeA110fDC0bE42d6c0832A12e5aE9ff075e92732` | [yes](https://sepolia.etherscan.io/address/0xdeA110fDC0bE42d6c0832A12e5aE9ff075e92732#code) |
+
+Compiler for all 6: **`FOUNDRY_PROFILE=ccid` (via_ir=true), solc v0.8.24+commit.e11b9ed9, optimizer runs 200,
+EVM cancun, bytecodeHash=ipfs.** The DEFAULT profile does not even compile the tree (stack-too-deep in the
+vendored CCID validator). Pre-submission proof for each: on-chain creation input EQUALS the locally built
+creation bytecode plus ABI-encoded constructor args, exact prefix match. Constructor args were DERIVED from
+the on-chain creation input (the broadcast artifact is not on `origin/main`) and then cross-checked against
+the deploying channel's stated values; all cross-checks passed.
+
+> **REPRODUCIBILITY GOTCHA, load-bearing for anyone re-verifying these.** The build must have **14
+> remappings, not 15**. An auto-detected `ds-test/=lib/openzeppelin-contracts/lib/forge-std/lib/ds-test/src/`
+> remapping, present in the shared checkout (forge fetches it as an untracked directory) but ABSENT in the
+> deploying environment, changes the solc metadata and therefore the trailing IPFS hash. The code bytes match
+> either way; only the metadata hash differs, so it presents as a near-miss rather than as drift. The
+> directory must be absent when rebuilding. This is the same class as the Multi-Asset SS2 lesson that the
+> `lib/` submodule state sets the metadata hash.
+
+### RETIRED, superseded by the above (recorded, NOT deleted)
+
+Pre-F-1 deploy of 2026-07-20: `0xE09c01A6e308563fCd0357EC859A07CFB6ECEAdF` (RWATokenV2),
+`0xC3F2C961eBC5526A9c7795E34FAD02F37c805079` (pool), `0x4AC18a2B5264fdC1De79088d96552Abf9e777095` (issuer),
+`0x70d56FEA4bDD7E140e85687A1fa29Dae81Ba7d16` (YT), `0x85cdE2C63d11b37387AcD46f31e5F32D60454CA3` (market),
+`0xE1f80f47c5128D68Dce355Ed58f97efC29EC553e` (vault). **F-1 is both the reason they exist and the reason they
+were replaced.** They are retained because the retired token is the control that proves the fix works. None of
+the 6 new addresses collides with a retired one or with any address previously recorded in this ledger
+(checked explicitly; a redeploy landing on a previously-ledgered address would otherwise read as
+"already verified").
+
+### State at gate time, and the standing conditions
+
+v1 MBT `0x044951AB...` is UNTOUCHED throughout: its chain still reads `[AllowPolicy, PausePolicy, Validator,
+MaxBalance, TransferRestrict]` on transfer. Wiring is internally consistent and points ONLY at the new set.
+The engine `0xd4b9F980...` is REUSED, not redeployed.
+
+### ATTACH COMPLETE: v2 is COMPLIANCE-ENFORCING (2026-07-21, verified by this gate)
+
+Ilan signed the attach (19 txs, all success, blocks 11322496-11322518). Policy-attach preceded any mint,
+config or exposure, so the standing condition above was SATISFIED. `totalSupply` remains 0 and v2 stays
+outside CCIP until Phase B.
+
+**Composition: v2 is IDENTICAL to LIVE v1 on all three selectors** (compared against the live v1 chain, not
+against an expected array, since expected-vs-file is circular):
+`[AllowPolicy 0x7858b6e6, PausePolicy 0x2038964A, Validator 0xdAbf8046, MaxBalance 0xe2e7Dce3,
+TransferRestrict 0x01B887BA]` on transfer/transferFrom, and `[..., SupplyLimit 0x0582AeDF]` on mint.
+Validator at index 2, CCID convention preserved. Config landed: `admissionValidator == 0xdAbf8046` (so the
+F-1 invariant HOLDS on the live config), one agent, mint authority on pool + issuer only.
+
+**PERMIT-PROOF: PASSES.** An admitted + credentialed sender is NOT blocked. Required because every
+reject-test below would pass identically on a token that rejects EVERYBODY, which is bricked rather than
+compliant.
+
+**REJECT-PROOFS, both legs, attributed BY POLICY ADDRESS with a v1 control:**
+
+| Sender state | v2 rejects at | v1 control |
+|---|---|---|
+| neither allowlisted nor credentialed | AllowPolicy `0x7858b6e6` | same |
+| **allowlisted but UNCREDENTIALED** | **Validator `0xdAbf8046`** | same |
+
+The second row is the CREDENTIAL leg proven BEHAVIOURALLY, not merely by composition. No such wallet exists
+on Sepolia (and creating one would break the credentialed-superset invariant), so it was produced with an
+`eth_call` STATE OVERRIDE of the AllowPolicy slot: zero transactions, zero state change, no address stranded.
+Gated on its own positive control first (`addressAllowed(synthetic)` false without the override, true with),
+because an endpoint that silently ignores overrides returns an ordinary AllowPolicy rejection that reads like
+a clean negative. The deploying channel had honestly declared this leg as unproven on v2 after its intended
+test wallet turned out to have been credentialed since the label was written; the override closes it without
+needing any wallet at all.
+
+> **The unwired window is safe PROCEDURALLY, not MECHANICALLY.** `onlyMintBurn` and `onlyAgent` both grant the
+> OWNER an implicit bypass of their mappings, so the owner can mint and can call the agent paths even though
+> `mintBurnAuthorities` and `isAgent` read false for every address. **Attach-before-mint is a rule to be
+> FOLLOWED, not a property that is enforced.** See the audit's precision box for the bound: the bypass is on
+> the AUTHORITY check, not on compliance, so for mint/transfer/transferFrom the full ACE chain still applies
+> to the owner.
+>
+> **This is exactly WHY the ordering invariant is load-bearing rather than tidy.** The owner can always mint,
+> so nothing mechanical stops a pre-attach mint into a token with an EMPTY policy chain, which would be an
+> ungated issuance. Once the chain IS attached, even an owner mint runs the mint-selector policies and is
+> gated like anyone else's (measured on mainnet: an owner mint to a non-allowlisted recipient reverts, named
+> to AllowPolicy). The attach is therefore the step that converts a procedural promise into an enforced
+> property. **Policy-attach MUST precede any mint, config or exposure, and the attach must be verified with a
+> PERMIT-proof as well as reject-proofs.**
+
+**Provenance: DURABLE.** The deploy broadcasts are committed to `origin/main` via **PR #280, MERGED at
+`608759e9892b331f5a07a14c6eff9b889e8db33d`** (2026-07-21). Independently verified by this gate: that commit
+is an ancestor of `origin/main`, and both archive files are present there, so the evidence no longer lives
+only in a worktree. Verified byte-identical to the originals by SHA-256 before the merge: RETIRED
+`run-1784597569821.json`, CANONICAL `run-1784614635493.json`. Provenance is carried in the FILENAMES
+(`RETIRED-preF1fix` / `CANONICAL-postF1fix`) so the retired set is explained by the record itself rather than
+only by audit prose. `run-latest.json` was deliberately EXCLUDED: a committed file whose meaning silently
+changes on the next deploy is worse than no file, because a later reader would cite it believing it fixed.
+The canonical archive parses to exactly the 5 top-level CREATEs above, all receipts `0x1`, with YieldTokenV2
+correctly absent as a top-level CREATE (it is an internal CREATE from the YieldIssuer constructor, which is
+also why it has no creation transaction of its own; this did NOT block its verification).
+
+The ATTACH broadcast is archived in **PR #283 (OPEN at the time of writing)** as
+`broadcast-archive/sepolia/ConfigureSepoliaV2Stack-ATTACH-run-1784672029577.json`, 19 txs / 19 receipts all
+`0x1`. SHA-256 `d8d29fd067090fc9ad0b9f8b7cb845ca3680f13d4e92293e2363c8dfa3bc8ebb`, which this gate computed
+independently against both the archived copy and the original and found identical. Recorded as OPEN rather
+than implying durability; replace with the merge SHA when it lands.
 
 ## Not live (documented for completeness)
 
