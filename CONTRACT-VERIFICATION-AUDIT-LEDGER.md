@@ -9,6 +9,37 @@ Columns: contract, chain, address, explorer link (verified source), AI audit (to
 report URL / date), notes. "by-design" = compliance control flagged as centralization by
 scanners; expected, not a finding.
 
+> ### TOOLING TRAP that produced FOUR false findings in one day, across four independent sessions
+> **zsh does not word-split an unquoted variable.** `set -- $pair` / `cast call $addr` inside a loop passes
+> EMPTY arguments, and `cast` then returns empty output that reads as a real result. Observed: "NO-CODE"
+> reported for 16 live contracts; "REVERT" reported for 8 healthy PoR feeds; `getPolicies` reported empty for
+> a populated chain; and one session initially blamed a public RPC for it and had to retract that.
+> **Its polarity is the opposite of the usual false-green: it manufactures FALSE ALARM, not false calm.** It
+> mimics a genuine finding (dead contracts, mass reverts, a stripped policy chain) rather than mimicking
+> health. Both are corrosive: a false green erodes safety, a false alarm erodes trust in the instrument, and
+> a monitor nobody believes is already switched off.
+> **Knowing about it does not protect you** - one session hit it in the very next command after reading a
+> warning about it, because it yields a plausible answer rather than an error. Only the structural fix works:
+> quote every expansion, and parse tables with `while IFS='|' read -r`, never by word-splitting.
+> Corollary: an empty or all-negative result from a batch loop is a BUG SIGNAL until proven otherwise;
+> reproduce a suspected mass-failure as a single isolated call before recording any conclusion from it.
+>
+> ### AN AMBIGUOUS PASS MESSAGE IS A DEFECT IN A MONITOR, even when the logic is perfect
+> The Canton permit-probe's negative-control mode printed "ALL HEALTHY" on a run that proves the DETECTOR
+> works and proves nothing about health. The counter logic was correctly wired (a blind matcher does set the
+> failure flag and exit non-zero, verified), but the wording conflated two claims, and the evidence it
+> mattered is that it sent a reviewer hunting for a counter bug that did not exist. **The output IS the
+> product**: nobody reads the counter logic at 3am, they read one line and decide whether to act, so a line
+> claiming health on a run that never tested health is how a real alert gets dismissed later. Fixed by making
+> the summary mode-aware, with an in-file comment recording WHY so it is not "simplified" back into one
+> string. General rule: **a monitor's message must name which claim it is making.** "Passed" is not a claim.
+>
+> ### SHIP CHECKS AS RUNNABLE MODES, NOT AS DESCRIBED RESULTS
+> Every verification handed between channels should be reproducible by the recipient. A described test can
+> only be trusted; a runnable one can be verified. The permit-probe's negative control was built in as a
+> re-runnable flag, which is why this gate could independently reproduce both suites (11/11 permit, 11/11
+> detect) rather than accept a report of them. Evidence, not testimony.
+>
 > ### READING CONVENTION: every on-chain STATE value here is a SNAPSHOT, not a standing claim
 > Verification facts are durable: source verified, bytecode matched, audit result, the composition of a
 > policy chain at attach. **Mutable STATE readings are true only at the date on their entry** - balances,
@@ -390,6 +421,80 @@ the repo's viaIR (`FOUNDRY_PROFILE=ccid`) artifacts, immutable ranges masked; **
 `PolicyRunRejected` named by the validator, "account identity validation failed"; state restored).
 OPEN item: Blockscout explorer-verification runs for the 10 Plume addresses (bytecode-match stands
 in as source verification meanwhile).
+
+### Base Sepolia (84532) - CCID credential gate, ATTACHED + ENFORCING - Etherscan V2 - COMPLETE (2026-07-22)
+
+Ilan directed closing the Base Sepolia credential gap (it had CCIP but no CCID validator). CCID deployed
+the full stack + KycAllowlister, authorized the issuer, and backfilled credentials; the Verify & Ledger
+gate ran verify/audit/enforcement/ledger, and the attach was fired only on Ilan's direct in-chat
+authorization. Deployer/issuer `0xFc9933C8...` (correct for this TESTNET chain).
+
+> **TWIN TRAP (chain-qualify everything).** Three of these addresses are cross-chain twins of LIVE Sepolia
+> contracts; each was resolved on 84532's OWN chain via typeAndVersion, never inferred from the twin:
+> `0x044951AB` = IdentityRegistry IMPL here / "Miami Beach Tower" MBT on Sepolia;
+> `0x53d88a3F` = IdentityRegistry PROXY here / BurnMintTokenPool on Sepolia;
+> `0xf8888292` = IssuerGate PROXY here / a PoR feed on Sepolia. Same address, different contract per chain.
+
+**THE HALT THIS GATE EXISTS FOR (recorded because it worked).** CCID's pre-attach ask was a full allowlist
+ENUMERATION, because their bounded public-RPC `getLogs` scan hit the range cap and returned false-empty
+(a direct read of {0xFc99, pool} is not an enumeration). The independent full-range scan on a keyed RPC
+found a THIRD allowlisted address, `0xCf309940276b1e1396AED22aC4e1E7D2E3dd27d6` (block 44312699), that was
+`addressAllowed = TRUE` but `validate() = FALSE` - allowlisted-but-UNCREDENTIALED. The credentialed set was
+NOT a superset of the allowlisted set, so attaching would have stranded it (admitted by the allowlist, yet
+reverting on the credential leg the moment it was used). **ATTACH HALTED.** CCID chose to credential it (it
+is the recurring Didit KYC test wallet, deliberately allowlisted, not an error). After the backfill
+(registerIdentity `0x4d02c145...`, registerCredential `0x70bfea9f...`, both status 1, to the
+Identity/Credential registries NOT the AllowPolicy), re-verify confirmed `validate(0xCf309940) = TRUE`, the
+allowlist net UNCHANGED at exactly {0xFc99, pool, 0xCf309940} (credential added, not an allowlist entry), and
+the superset restored. A bounded-scan attach would have shipped the latent break.
+
+Enumeration completeness (same standard as the mainnet section): full-range Etherscan scan; exactly ONE
+`Upgraded` at the AllowPolicy creation block (impl unchanged, no silent write path); ownership `0x0 -> 0xFc99`
+at creation then `0xFc99 -> KycAllowlister 0x854870d8` at block 45455532, with all allow events predating the
+transfer, so all were 0xFc99's direct calls.
+
+**ATTACH + ENFORCEMENT, verified 2026-07-22 (attach txs `0xf0a0ea9c` / `0xe8c5806a` / `0x1a8a597f`, all
+status 1):** `getPolicies(MBT 0x2aedDb48, transfer|transferFrom|mint) == [AllowPolicy 0x2b7B6f83,
+PausePolicy 0x55d0Ed9c, Validator 0x6dea0c23]`, validator at index 2 on all three. PERMIT-proof: a real
+transfer credentialed->credentialed does NOT revert. Credential-leg ISOLATION via `eth_call` state override
+(positive-control-gated on the endpoint honouring overrides): no override rejects at AllowPolicy, an
+allowlisted-but-uncredentialed synthetic rejects at the VALIDATOR - the rejection MOVES to the validator when
+the allowlist stops binding. Mandatory here, not optional: because the credentialed and allowlisted sets are
+EQUAL, a reject-only test cannot distinguish a correctly-gated chain from a bricked one.
+
+**Contracts - identity chain-qualified, audit cite-prior by PROVEN codehash-identity, all 7 explorer-verified
+on Basescan (independently re-confirmed via `getsourcecode`).** Each of the 5 ACE impls is codehash-IDENTICAL
+to its already-audited Sepolia CCID counterpart (so the prior ACE/CCID review carries byte-for-byte, not by
+assertion); KycAllowlister is OB's MIT `src/kyc/KycAllowlister.sol`, unchanged since the #136 review. Built
+from the CCID worktree at `1250671` (branch `ccid-base-testbed-deploy`), profile MEASURED per contract =
+`FOUNDRY_PROFILE=ccid` / via_ir / solc v0.8.24+commit.e11b9ed9 / runs 200 (default profile did NOT match).
+
+| Contract | Address | Impl | Verified |
+|---|---|---|---|
+| RegistryAdminEngine (proxy) | `0x90250A98538159fA7A2306FAeA9D84e9deC24C77` | `0xb689499ef68846ce3d6FD8BB5C92F9EC88F45073` | [yes](https://sepolia.basescan.org/address/0x90250A98538159fA7A2306FAeA9D84e9deC24C77#code) |
+| PolicyEngine (impl) | - | `0xb689499ef68846ce3d6FD8BB5C92F9EC88F45073` | [yes](https://sepolia.basescan.org/address/0xb689499ef68846ce3d6FD8BB5C92F9EC88F45073#code) |
+| IssuerGatePolicy (proxy) | `0xf88882929AA3ABcDf6A9B976AA33B4158C918c1C` | `0xB917335db8ff4e5ab36E4E0f3b643e54134f86Cc` | [yes](https://sepolia.basescan.org/address/0xf88882929AA3ABcDf6A9B976AA33B4158C918c1C#code) |
+| OnlyAuthorizedSenderPolicy (impl) | - | `0xB917335db8ff4e5ab36E4E0f3b643e54134f86Cc` | [yes](https://sepolia.basescan.org/address/0xB917335db8ff4e5ab36E4E0f3b643e54134f86Cc#code) |
+| IdentityRegistry (proxy) | `0x53d88a3Fe9480767bE210CbC2e2b3E14145D087d` | `0x044951AB857C7e23b5570D4ca11466ACACF861A8` | [yes](https://sepolia.basescan.org/address/0x53d88a3Fe9480767bE210CbC2e2b3E14145D087d#code) |
+| IdentityRegistry (impl) | - | `0x044951AB857C7e23b5570D4ca11466ACACF861A8` | [yes](https://sepolia.basescan.org/address/0x044951AB857C7e23b5570D4ca11466ACACF861A8#code) |
+| CredentialRegistry (proxy) | `0xbf9206B3F6B335875A242899C472C2C440FBa02F` | `0x388078c36aa58f8dD591e3A07Deef59a080C8aec` | [yes](https://sepolia.basescan.org/address/0xbf9206B3F6B335875A242899C472C2C440FBa02F#code) |
+| CredentialRegistry (impl) | - | `0x388078c36aa58f8dD591e3A07Deef59a080C8aec` | [yes](https://sepolia.basescan.org/address/0x388078c36aa58f8dD591e3A07Deef59a080C8aec#code) |
+| ValidatorPolicy (proxy, ENFORCING) | `0x6dea0c2323b90784b143E6011D2F003aF61BD67F` | `0x2925B83018F616d8efc44A78faE743dbd95707ef` | [yes](https://sepolia.basescan.org/address/0x6dea0c2323b90784b143E6011D2F003aF61BD67F#code) |
+| ValidatorPolicy (impl) | - | `0x2925B83018F616d8efc44A78faE743dbd95707ef` | [yes](https://sepolia.basescan.org/address/0x2925B83018F616d8efc44A78faE743dbd95707ef#code) |
+| KycAllowlister (owns AllowPolicy) | `0x854870d876B35b4b5da6ea39d6C3093a9F34F733` | - (direct, MIT) | [yes](https://sepolia.basescan.org/address/0x854870d876B35b4b5da6ea39d6C3093a9F34F733#code) |
+
+**Publish governance:** the 5 ACE contracts are Chainlink BUSL-1.1 (submitted VERBATIM, no OB copyright added);
+KycAllowlister is MIT. Publishing this specific Base Sepolia BUSL set was approved by Ilan directly (same
+decision + zero-marginal-disclosure rationale as the Amoy validator; the source is already public and already
+verified on other chains). **Caveat, recorded honestly:** the Etherscan `LicenseType` DROPDOWN field came back
+EMPTY for all 7 (forge's standard-JSON path does not stamp it, and re-submission of an already-verified address
+is refused). The governing marker is the SPDX identifier in the verbatim source, which is present and correct
+(`BUSL-1.1` in the ACE contracts, `MIT` in KycAllowlister); only the explorer's separate label field is unset.
+
+**State at gate time (SNAPSHOT):** MBT `0x2aedDb48` totalSupply = 1e18, held entirely by 0xFc99
+(balanceOf(pool) = 0). Net allowlist = credentialed set = {0xFc99, pool, 0xCf309940}. Public-surface exposure
+(flag-flip out of "soon", the "N EVM chains credential-gated" count) is GOVERNANCE-gated (CCID + Content +
+Session 8), NOT this gate; the count must be re-checked against the live attached set at PUBLISH time.
 
 ### Onboarding-authority proxy (KycAllowlister)
 | Chain | Proxy | Status |
