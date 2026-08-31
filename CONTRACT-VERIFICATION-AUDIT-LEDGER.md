@@ -75,6 +75,7 @@ scanners; expected, not a finding.
 | BurnMintTokenPool (MBT) | `0x53d88a3Fe9480767bE210CbC2e2b3E14145D087d` | [yes](https://sepolia.etherscan.io/address/0x53d88a3Fe9480767bE210CbC2e2b3E14145D087d#code) | [3 analyzers: 0 Crit/High/Med (2026-06-17)](audits/SECURITY-REVIEW-2026-06-17.md) | CCIP burn/mint pool |
 | CrossChainBridge | `0x454B52EA0e4995136A3A325FE0c8F2F70a2603ee` | [yes](https://sepolia.etherscan.io/address/0x454B52EA0e4995136A3A325FE0c8F2F70a2603ee#code) | [3 analyzers: 0 Crit/High/Med (2026-06-17)](audits/SECURITY-REVIEW-2026-06-17.md) | Functions consumer (CRE bridge path) |
 | TLPT (Teleport, BurnMintERC677) | `0x1ceaaE761C87278acfbE33c89eC523B46FAbCcF3` | [yes](https://sepolia.etherscan.io/address/0x1ceaaE761C87278acfbE33c89eC523B46FAbCcF3#code) | [3 analyzers: 0 Crit/High/Med (2026-06-17)](audits/SECURITY-REVIEW-2026-06-17.md) | see config-bug note below |
+| TestTLPTSale (testnet native->TLPT ramp) | `0x239c188df0525B8410F253f71c5De6C69325d7F6` | [yes](https://sepolia.etherscan.io/address/0x239c188df0525b8410f253f71c5de6c69325d7f6#code) | [S8 adversarial source audit PASS, no changes (2026-08-30)](https://github.com/kofif1/OnchainBridges-RWA-testnet/pull/346#issuecomment-5470876893) | prices read LIVE from the v2.1 paymaster (no-arbitrage by construction); treasury-funded, no mint authority; boundary-probe buy delivered exactly 1 TLPT at $0.05; testnet-only |
 | PolicyEngine (proxy) | `0xd4b9F980f09f0871C753a7d558B5c500DA1617a3` | [yes](https://sepolia.etherscan.io/address/0xd4b9F980f09f0871C753a7d558B5c500DA1617a3#code) | [3 analyzers: 0 Crit/High/Med (2026-06-17)](audits/SECURITY-REVIEW-2026-06-17.md) | ACE; centralization flags by-design |
 | PolicyEngine (impl) | `0x8f1bb564ef4c323350ce301e4a4e354f0fab15f9` | [yes](https://sepolia.etherscan.io/address/0x8f1bb564ef4c323350ce301e4a4e354f0fab15f9#code) | [3 analyzers: 0 Crit/High/Med (2026-06-17)](audits/SECURITY-REVIEW-2026-06-17.md) | scan this for logic |
 | AllowPolicy (proxy) | `0x7858b6e699c381583A8A820F52AF051197B3DCD1` | [yes](https://sepolia.etherscan.io/address/0x7858b6e699c381583A8A820F52AF051197B3DCD1#code) | [3 analyzers: 0 Crit/High/Med (2026-06-17)](audits/SECURITY-REVIEW-2026-06-17.md) | ACE |
@@ -105,6 +106,9 @@ scanners; expected, not a finding.
 > **Audit applies to every EVM chain below.** It is the same Solidity source compiled to the same
 > bytecode on each chain, so the [3-analyzer source review](audits/SECURITY-REVIEW-2026-06-17.md)
 > (0 Critical/High/Medium) covers all of them. The per-chain rows record on-chain *verification*.
+
+
+**TestTLPTSale (native->TLPT ramp) added 2026-08-30:** `0x10313A481c7b41aa251D58Ec347Dcf4Ac96357ff` verified (Etherscan V2: ContractName=TestTLPTSale); S8 adversarial source audit PASS, no changes ([PR #346 comment](https://github.com/kofif1/OnchainBridges-RWA-testnet/pull/346#issuecomment-5470876893)); probe buy delivered exactly 1 TLPT at 0.25 S parity.
 
 ## Plume Testnet (98867) - Phase-1 policies - Blockscout - COMPLETE (2026-07-14)
 
@@ -160,6 +164,9 @@ live reads verified (typeAndVersion, no-op knobs, owner `0xFc99`, impl slots). S
 
 Final live chains: transfer/transferFrom `[Allow, Pause, Validator@2, MaxBalance@3, TransferRestrict@4]`; mint `[Allow, Pause, Validator@2, MaxBalance@3, SupplyLimit@4]`. Behavioral proof clean; CCID re-read pinged. Amoy = third chain live (after Sepolia + Plume).
 
+
+**TestTLPTSale (native->TLPT ramp) added 2026-08-30:** `0xabfD1d08dBA9649AAb3599Db24A6d6D4247113F4` verified - AUTO-verified via Blockscout's shared bytecode DB (from the Minato verification), CONFIRMED by direct getsourcecode read on Plume's own Blockscout (name=TestTLPTSale); a duplicate manual submission returned "Fail - Unable to verify" against the already-verified contract (instrument quirk, recorded); S8 adversarial source audit PASS, no changes ([PR #346 comment](https://github.com/kofif1/OnchainBridges-RWA-testnet/pull/346#issuecomment-5470876893)); probe buy delivered exactly 1 TLPT at 5 PLUME.
+
 ## Soneium Minato (1946) - Phase-1 policies - Blockscout - COMPLETE (2026-07-16)
 
 The three Sepolia-audited Phase-1 policies propagated to Minato (identical source, main `2fcd6e3`; the
@@ -184,6 +191,9 @@ chain-qualify everything.
 
 Behavioral proof clean; CCID pinged for the final all-chains sweep. **Minato = fourth EVM chain live. FULL EVM PHASE-1 PROPAGATION COMPLETE: 4 chains (Sepolia + Plume + Amoy + Minato) x 3 policies, all deployed, gated (verified + audited), attached, and enforcing.** Shibuya deferred on Astar recovery; Base pending its going-live.
 
+
+**TestTLPTSale (native->TLPT ramp) added 2026-08-30:** `0x27C931499bDcdF0C81F5a853358BC99216Bf75C9` verified (Etherscan V2: ContractName=TestTLPTSale); S8 adversarial source audit PASS, no changes ([PR #346 comment](https://github.com/kofif1/OnchainBridges-RWA-testnet/pull/346#issuecomment-5470876893)); probe buy delivered exactly 1 TLPT at 0.25 POL parity. TWIN: same address is Sepolia's TGLP Reserve Feed - chain-qualify.
+
 ## Sonic Testnet (14601) - Etherscan V2 - COMPLETE
 
 Explorer: `https://testnet.sonicscan.org/address/<addr>#code`. All 8 canonical contracts verified:
@@ -206,6 +216,9 @@ Explorer: `https://soneium-minato.blockscout.com/address/<addr>`. TLPT-ecosystem
 OperatorAllowlist `0x5fe9d900945b60b3becede4382bed2653ec99d40`, TLPTFaucet `0x8c57abe7cf1330346eb760edaee380a66d3f42f7`,
 TLPTSale `0xe5e1e4b594c343c1e9bac0730b25fd4ab21f7389`, TLPTStaking `0xf3186574c8a0c0b3e235704bad389b78604b2745`,
 TestUSDC `0x71a8e443f223cfe59498968758db49f2d114dce2`. (Minato's MBT/bridge is currently hidden in the UI.)
+
+
+**TestTLPTSale (native->TLPT ramp) added 2026-08-30:** `0xc22B8aAc6D00E86D4811af41786B6Bb97242E525` verified (Blockscout: fully_verified=true); S8 adversarial source audit PASS, no changes ([PR #346 comment](https://github.com/kofif1/OnchainBridges-RWA-testnet/pull/346#issuecomment-5470876893)); probe buy delivered exactly 1 TLPT at 0.000025 ETH. NOTE: distinct from the DORMANT USDC-rail `TLPTSale 0xe5e1e4b5...` also on Minato - two contracts by design.
 
 ## Astar Shibuya (81) - Blockscout - COMPLETE
 
