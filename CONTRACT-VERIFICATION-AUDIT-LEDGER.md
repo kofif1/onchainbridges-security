@@ -1262,6 +1262,62 @@ owner (whose implicit `onlyMintBurn` bypass means "mint authority revoked" does 
 **This binds at Session 4:** wiring a lane makes the pool a reachable minter, and an inbound delivery then
 needs BOTH a fresh feed AND reserves above supply.
 
+## OB Agent Network - AGENTS-12 Phase 1 (Sepolia 11155111 + Polygon Amoy 80002) - Etherscan V2 - COMPLETE (2026-08-31)
+
+Open-repo (MIT) Phase-1 agent-delegation contracts from `ob-agent-network` (source commit `0c8db28`). CCID
+deployed + ran its verify/audit leg; the Verify & Ledger independent leg (this entry) read both chains
+directly. Deployer `0xd63352Cc9f96362D3D080B7c519e7f64f97e446a`.
+
+**1. RevocationRegistry (deployed contract) - twin, same address both chains.**
+`0x1EFa0Af5d7a814725ff2b8F47b0502634Ac4c26E` (deployer nonce 0, so IDENTICAL CREATE address on both chains).
+No `typeAndVersion`, so the twin discriminator is the deployed bytecode: `keccak256(deployedBytecode) =
+0xa92296da4b58cd523c1587ab8b275524778b57950454c4713b5a28e76c14c924`, read IDENTICAL on Sepolia AND Amoy
+(same address + same bytecode-hash = genuine twin, not a same-address collision). Explorer-verified as
+`RevocationRegistry` on both chains (independent `getsourcecode`), SPDX `MIT`, solc v0.8.24.
+
+| Contract | Address | Sepolia | Amoy |
+|---|---|---|---|
+| RevocationRegistry | `0x1EFa0Af5d7a814725ff2b8F47b0502634Ac4c26E` | [yes](https://sepolia.etherscan.io/address/0x1EFa0Af5d7a814725ff2b8F47b0502634Ac4c26E#code) | [yes](https://amoy.polygonscan.com/address/0x1EFa0Af5d7a814725ff2b8F47b0502634Ac4c26E#code) |
+
+**2. DelegationAdmission (INTERNAL LIBRARY - no standalone address).** All functions are `internal` (zero
+public/external), so it is INLINED into its callers, NOT separately deployed. It is verified via its
+CONTAINER: the source-verified `OBAgentWalletV2` ("Test Wallet 3"), whose verified source contains the
+library at commit `0c8db28`.
+
+| Container (OBAgentWalletV2) | Address | Verified |
+|---|---|---|
+| Sepolia | `0xdD5756d3713D704594f0b932cDB9bB0eF63758B4` | [yes](https://sepolia.etherscan.io/address/0xdD5756d3713D704594f0b932cDB9bB0eF63758B4#code) |
+| Amoy | `0xF6af3A53c38031B7469D5e6a1Dc2eCF31D9F8832` | [yes](https://amoy.polygonscan.com/address/0xF6af3A53c38031B7469D5e6a1Dc2eCF31D9F8832#code) |
+
+Container verified independently: explorer-verified as `OBAgentWalletV2` on both chains (identical 194703-char
+source containing `DelegationAdmission` + the `isRevoked` cross-call), 4932B runtime with identical runtime-head
+across chains (same code, per-chain CREATE2 salt gives different addresses).
+
+**On-chain PERMIT + REJECT pair (the library's admission legs actually gate the DEPLOYED wallet, not just the
+mocked unit tests).** The four legs (None / MissingIdentity / MissingCredential / Expired / Revoked) are
+unit-tested in `DelegationAdmission.t.sol`, but unit tests MOCK the registries; the real proof is the deployed
+wallet wired to the REAL RevocationRegistry:
+- PERMIT: `execute()` ping, Sepolia `0xab5fbec9b75ac9da621a39d041fe73eb2b2f6d32bc629c6d01261eb9e2c3611c`
+  status 1 (also Amoy `0xebd159c8a088322543c8ff351f6272546fd1f99037d70e4bed4d5e5c7280090f` status 1).
+- REJECT (revocation leg), Sepolia, a REAL revoke -> failing-ping -> unrevoke bracket:
+  `revoke(1)` `0x144004001b5fdb7d62e63badb0e3874a5fe888d306032b62a30f2b726c216032` (status 1) ->
+  `execute()` ping at nonce 1 while revoked `0xdcd90448ac63ba074a90605f6307a06f1c65f4f1274ded5ad9d2388f11c344cd`
+  **status 0 (REVERTED)** at block 11616159 -> `unrevoke(1)`
+  `0xe832cf40cdd0ad591f3d25b6fe8d299dccc36538d38375f74a034adb23490eeb` (status 1).
+  This gate RE-SIMULATED the failing op at its historical block: revert data
+  `0x07b9fad00000...0004` = `DelegationRejected(uint8)` with arg **4 = Reason.Revoked** (enum order
+  None=0/MissingIdentity=1/MissingCredential=2/Expired=3/Revoked=4, confirmed from source). The op was
+  otherwise-valid (fresh nonce, valid signature), so it passed the sig+nonce checks and reverted SPECIFICALLY
+  at the revocation leg - not sig, nonce, or another leg. The on-chain custom error is `DelegationRejected(Reason)`,
+  NOT the `agent_delegation_revoked` string (that string is the standalone DelegationValidatorPolicy's reason,
+  not in this wallet-internal path). Registry left CLEAN: post-`unrevoke`, `isRevoked(0xd63352Cc..., 1) == false`
+  (SNAPSHOT read; the revoke was transient).
+
+**Audit:** MIT, source commit `0c8db28`. CCID's verify/audit leg = PASS (correctness + spec-match); this gate
+independently reproduced the RevocationRegistry bytecode-twin identity, the container source-verification, and
+the full PERMIT+REJECT pair including decoding the revocation-leg revert. CCID's full record:
+`SESSION-COORDINATION/CCID-AGENTS12-PHASE1-AUDIT.md`.
+
 ## Not live (documented for completeness)
 
 - **Base Sepolia (84532):** NOT a supported network (`SUPPORTED_CHAINS` excludes it). Early test
