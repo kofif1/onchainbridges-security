@@ -1318,6 +1318,48 @@ independently reproduced the RevocationRegistry bytecode-twin identity, the cont
 the full PERMIT+REJECT pair including decoding the revocation-leg revert. CCID's full record:
 `SESSION-COORDINATION/CCID-AGENTS12-PHASE1-AUDIT.md`.
 
+## Multi-Asset hub LendingVaults - 10 catalog assets (Sepolia 11155111) - Etherscan V2 - GATE PASS (2026-09-06)
+
+Ten hub-sited LendingVaults (one per catalog asset), deployed by Ilan 2026-09-06 (staged by the Multi-Asset
+Marketplace channel), verify/audit/ledger gate by Verify & Ledger. DISTINCT from + additive to the existing
+SS2 Amoy AVR/TGLP vaults (those stay). Hub-sited where the collateral supply lives; no lane/spoke/mint - a
+borrow deposits hub collateral into a hub vault. Deployer/owner `0xFc9933C8896715c1f3ADF9b8250ac051a95Fd33c`.
+Shared Sepolia USDC (deployer-owned) `0x8bd2a0a9f90dc40a3a420c84553d40dd688035df`. Provider names display-only.
+
+| Sym | Vault | Collateral | LTV | Rate(bps) | Price(6) | Provider |
+|---|---|---|---|---|---|---|
+| AVR | [`0xf9781594461C19884aF3D2e4ceEBCefa9d456086`](https://sepolia.etherscan.io/address/0xf9781594461C19884aF3D2e4ceEBCefa9d456086#code) | `0x8CaDD1Dd8841FC8dC88f7f27dd0a12F2ABb5Ac2D` | 6500 | 500 | 250000000 | Atlas Capital |
+| TGLP | [`0x3a41261438f8a0ABB3A775Cf6E515c8FEaBFeD57`](https://sepolia.etherscan.io/address/0x3a41261438f8a0ABB3A775Cf6E515c8FEaBFeD57#code) | `0xa2951ee0A94aA6a37646B3112561f1b4eCd22e36` | 7500 | 420 | 25000000 | Atlas Capital |
+| NTR | [`0x14044A1B4eFFcEB5eac5d9bEef0338bbC96dDB39`](https://sepolia.etherscan.io/address/0x14044A1B4eFFcEB5eac5d9bEef0338bbC96dDB39#code) | `0x0a27077306B11432643402Cbd71E830D9DD55df3` | 7000 | 600 | 1000000 | Meridian Lending |
+| SGI | [`0x35756Be4390D8cf9938470e19880238a64a95031`](https://sepolia.etherscan.io/address/0x35756Be4390D8cf9938470e19880238a64a95031#code) | `0xA0B04fe56662B2D1E56202Bc7759964057d507B2` | 7000 | 550 | 50000000 | Meridian Lending |
+| VCC | [`0xd5B3b6BBd12DF324724C0353d34B92b70011494e`](https://sepolia.etherscan.io/address/0xd5B3b6BBd12DF324724C0353d34B92b70011494e#code) | `0x110d738424Fc30Fca0475C980Aa9F6C3a0d6a894` | 5500 | 650 | 15000000 | Nova Finance |
+| HRT | [`0x9533bb01123675C300befe2DcC6c004EDFb2Cac8`](https://sepolia.etherscan.io/address/0x9533bb01123675C300befe2DcC6c004EDFb2Cac8#code) | `0x7Cf249F2c5B4C7f7Dae0B707B06dc5B8425D632e` | 6000 | 600 | 8000000 | Nova Finance |
+| IEL | [`0x21D41012AD026d29C92a3513a1EF2AFA88B25787`](https://sepolia.etherscan.io/address/0x21D41012AD026d29C92a3513a1EF2AFA88B25787#code) | `0xA7cF769df5512c95fd75643947A5927beb8152E5` | 6500 | 550 | 40000000 | Plumage Finance |
+| CLW | [`0x566AdFa78FAF687324aD33e94eB40E5389c3A406`](https://sepolia.etherscan.io/address/0x566AdFa78FAF687324aD33e94eB40E5389c3A406#code) | `0xD5a7aA7394bDAd77693F2D1e836362Af7E3C3C5e` | 5000 | 700 | 120000000 | Plumage Finance |
+| ABA | [`0x839e7F5d7669357BDd562F163602432C097f25D6`](https://sepolia.etherscan.io/address/0x839e7F5d7669357BDd562F163602432C097f25D6#code) | `0x015bc7862C8BeC7C7C8581Ac05C0b5D3dB9dCA9C` | 5000 | 700 | 500000000 | Atlas Capital |
+| LLF | [`0x53DE2FDf5C08Cf898708268c4467F844C670B31C`](https://sepolia.etherscan.io/address/0x53DE2FDf5C08Cf898708268c4467F844C670B31C#code) | `0xcad34CC603C7643CDdeA19C742923e72876e7420` | 4500 | 800 | 75000000 | Meridian Lending |
+
+**On-chain verify (my own reads off the chain, NOT the deploy log):** all 10 - codesize 4534; `collateralToken()`
+== the expected hub collateral (this is ALSO how I confirmed the vault->symbol mapping - independent of the
+nonce-deterministic run log's ordering); `ltvBps()`/`annualRateBps()`/`tokenPriceUSD()` == the approved terms
+exactly; `usdc()` == the shared USDC; `owner()` == 0xFc99; USDC `balanceOf(vault)` == 100,000e6 (owner-mint at
+deploy). All PASS.
+
+**Explorer-verify (independently re-confirmed via `getsourcecode`, NOT taken from forge stdout):** all 10 =
+ContractName `LendingVault`, compiler `v0.8.24+commit.e11b9ed9`, optimizer ON / 200 runs, **viaIR FALSE**.
+
+**Audit:** source `src/defi/LendingVault.sol` blob `ac97b8cd171d9ab0fc9d0094d1e22a2b51b33bbc`, MIT, confirmed
+byte-identical to `origin/main` - the already-audited source (3-analyzer run, 0 Crit/High/Med; the interest-
+bearing-loan code landed 2026-05-01, BEFORE the audit + the SS2 deploy, and the file is untouched since, so the
+audit covers it). **Deployed bytecode PROVEN against the audited source for ALL 10:** each vault's deployed
+runtime, with the two immutables (`collateralToken`, `usdc`) masked, is BYTE-IDENTICAL to the locally-compiled
+source. **Compile profile determined EMPIRICALLY, not inherited:** default (optimizer 200 / viaIR FALSE) yields
+4534 bytes = deployed; the ccid/viaIR profile yields 3958 bytes (would NOT match). SS3 used viaIR - this batch
+does NOT; checked the bytecode rather than assuming. Same LendingVault source as SS2 Amoy AVR/TGLP.
+
+**Gate: PASS (all four legs).** Released the Multi-Asset defi.ts config PR. Provenance run log:
+`OB-multi-asset/broadcast/hubvaults-run-2357.log`.
+
 ## OB Agent Network - AGENTS-13 autonomous-borrow credential (Polygon Amoy 80002) - CREDENTIAL ISSUANCE - GATE PASS (2026-09-05)
 
 Credential issuance (NOT a contract deploy): two delegation credentials for agentId 1 written to the
