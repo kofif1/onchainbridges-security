@@ -1318,6 +1318,77 @@ independently reproduced the RevocationRegistry bytecode-twin identity, the cont
 the full PERMIT+REJECT pair including decoding the revocation-leg revert. CCID's full record:
 `SESSION-COORDINATION/CCID-AGENTS12-PHASE1-AUDIT.md`.
 
+## OB Agent Network - AGENTS-13 autonomous-borrow credential (Polygon Amoy 80002) - CREDENTIAL ISSUANCE - GATE PASS (2026-09-05)
+
+Credential issuance (NOT a contract deploy): two delegation credentials for agentId 1 written to the
+`CredentialRegistry 1.0.0` at `0x94d6257c2f696019B0Bbf22b28b853689076D898`, adding the `borrow` action so the
+OB agent can take a testnet loan through the OB framework broker. Types library `DelegationTypesV2.sol`
+(`ob-agent-network`, SPDX MIT) is stateless (no deploy). Design: CCID / Rail 2B. Ilan signed all three
+transactions himself (`0xFc9933C8896715c1f3ADF9b8250ac051a95Fd33c` = 0xFc99).
+
+**ENFORCEMENT BOUNDARY (Legal Review matter 9, condition a - binds this entry and every doc/demo/mention):**
+the `maxBorrowUsdc` / `borrowWindowAmount` / `borrowWindowPeriod` caps are **policy-enforced by a trusted OB
+framework broker, on testnet** - they are **NOT enforced on-chain.** The borrow AgentOp carries native
+`value = 0`, so `OBAgentWalletV2`'s on-chain per-op check passes at any size; the v2 caps are read only by the
+off-chain broker. **A consumer that bypasses the broker and signs directly against the wallet CAN exceed these
+caps on-chain.** On-chain amount enforcement is Phase 2C (v3 wallet). This entry never states or implies the
+caps are "on-chain enforced" or that the agent "cannot exceed" them. Source NatSpec carries this verbatim
+(`DelegationTypesV2.sol`, the v2-additions block). This issuance is the INTERNAL testbed (OB's own agent), NOT
+outside-agent enforcement.
+
+### Transactions (all independently read from Amoy chainid 80002 by this gate; `from == 0xFc99`, `status 1`)
+| # | Tx | Block | Call (via AccessManager selector) | Registry event |
+|---|---|---|---|---|
+| A | [`0xfce03592...851e26`](https://amoy.polygonscan.com/tx/0xfce03592681eecf571cf0c58c98a43138b445e686538261b21e9fcb8d5851e26) | 46841687 | `registerCredential` (`0x8ab73618`) | CredentialRegistered ccid `0xc27694aa...`, typeId v2 `0xa4b0fb96...` |
+| B | [`0xdafdc551...caad61`](https://amoy.polygonscan.com/tx/0xdafdc55196ef3b39e3ac4b57833e1fe559b1db20954d066156c825251acaad61) | 46841752 | `removeCredential` (`0x93893fcb`) | CredentialRemoved (`0x9094e025`, exact) v1 `0x57fe1f0a...` |
+| C | [`0xfa5c2062...e9fd58`](https://amoy.polygonscan.com/tx/0xfa5c2062310a60047fa85ce444616ad05397ad1add65b6684d22164e7ce9fd58) | 46841797 | `registerCredential` (`0x8ab73618`) | CredentialRegistered v1 `0x57fe1f0a...` |
+
+Block order A < B < C confirms v2 was issued BEFORE the v1 remove->re-add window, so there was never a moment
+with neither credential present. The v1-absent transient window (B->C, ~45 blocks / ~90s) has v2 present
+throughout; the wallet gates on v1, so any v1 op in that window fails CLOSED (safe direction). Testnet, no
+traffic. Stated, not hidden as "no gap."
+
+### Live end-state (this gate's own reads on the registry)
+- `getCredentialTypes(ccid)` = `[v2 0xa4b0fb96, v1 0x57fe1f0a]` - BOTH present. `validate(ccid,v1)`=true,
+  `validate(ccid,v2)`=true. `expiresAt` = 0 (never) on both (SNAPSHOT at block ~46841797+).
+- **v1 (typeId `0x57fe1f0a...`, 6-field DelegationDataV1):** agentId=1, allowedActions=`[ping
+  0xcd541a5f...879c7, borrow 0x4f943907...6170e]`, perActionCap=1e16, spendWindowAmount=5e16,
+  spendWindowPeriod=3600, revocationRegistry=`0x1EFa0Af5d7a814725ff2b8F47b0502634Ac4c26E`.
+- **v2 (typeId `0xa4b0fb96...`, 9-field DelegationDataV2):** same first six + maxBorrowUsdc=50000000 (50e6),
+  borrowWindowAmount=200000000 (200e6), borrowWindowPeriod=3600. (Caps are DECLARED framework caps - see the
+  enforcement-boundary block above; never on-chain bounds.)
+- **CONSISTENCY INVARIANT (the load-bearing cross-credential check): allowedActions BYTE-IDENTICAL v1==v2** =
+  `[ping, borrow]`, same order. No split-brain (wallet reads v1, framework reads v2). PASS.
+- **typeId integrity:** both recomputed independently - v1 `keccak256(abi.encodePacked("ob.agent_delegation.v1",
+  uint256(1)))` = `0x57fe1f0a...`, v2 (`...v2`,1) = `0xa4b0fb96...`; the agentId echoed inside both structs = 1
+  (defense-in-depth). Action hashes recomputed: keccak256("ping")=`0xcd541a5f...879c7`,
+  keccak256("borrow")=`0x4f943907...6170e` - match the on-chain values.
+- **field-count exactness = versioning safety:** v2 decodes as exactly 9 fields (allowedActions offset 0x120);
+  v1 as 6 (offset 0xc0). Both via the single-dynamic-tuple 0x20 wrapper (Phase-1 encoding gotcha), decoded
+  byte-against the on-chain read.
+- **revReg pointer identity:** `0x1EFa0Af5d7a814725ff2b8F47b0502634Ac4c26E` - EIP-55 canonical, codesize 895,
+  `isRevoked(address,uint256)` responds - the REAL Phase-1 RevocationRegistry (source-verified on Amoy in the
+  AGENTS-12 entry above), NOT the fixture placeholder.
+- **no PII on-chain:** only agentId, two keccak action hashes, numeric caps, and the revReg pointer.
+
+### Governance conditions (all satisfied at clear)
+- **Legal matter 9 ON RECORD:** lite check, PROCEED (testnet), three binding conditions (a language / b
+  Model-A-internal-only / c re-check triggers). Re-read on the artifact (`CCID-BORROW-AUTONOMY-GATE-NOTE.md`),
+  not a relay.
+- **Ilan-DIRECT authorization for the on-chain act:** SATISFIED by `from == 0xFc99` on all three txs (Ilan's own
+  hardware signature) + this gate's decode-against-package (`policy_signed_write_satisfies_direct_auth`). The
+  **off-chain PUSH of this ledger entry still requires Ilan's separate direct greenlight.**
+- **(c) re-check triggers:** NONE fired (testnet / valueless / OB's own agent / no public marketing / no
+  wallet-side-enforcement claim). Any trigger => full Legal check before ship.
+- **Provenance:** Option-B (CCID/Rail 2B design), MIT, v1 schema/typeId byte-untouched (only the credential's
+  allowedActions data changed). Pre-flight + at-issuance criteria: `VL-AGENTS13-BORROW-CREDENTIAL-GATE-CRITERIA.md`.
+
+**Phase 2C (on-chain cap enforcement for outside agents):** dormant, awaiting Ilan's greenlight. Enforcement
+must live at a mandatory chokepoint every borrow crosses - the wallet `execute()` OR a limit policy on an
+OB-gateable borrow target (the `LimitsAggregatorPolicy` shape). A fully external agent (own wallet, non-gateable
+vault) is reachable only by off-chain trust. This gate blocks any record calling outside-agent caps "enforced"
+until Phase 2C is live and gated.
+
 ## Not live (documented for completeness)
 
 - **Base Sepolia (84532):** NOT a supported network (`SUPPORTED_CHAINS` excludes it). Early test
